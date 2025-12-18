@@ -52,6 +52,57 @@ builder.Services.AppDbContext<AppDbContext>( options =>
 
 //read the key for the appsetting 
 var jwtKey = builder.Configuration["jwt:jwtKey"];
+//add the jwt  barrer token schema
+//jwt has a validation chackes i need to add this 
+builder.services.AddAuthentication(JwtBerrerDefaults.AuthenticationScheme)
+        .AddJwtBearer( options =>{
+            options.TokenValidationParameters = new TokenValidationParameters{
+                ValidateIssuer = true,
+                ValidateAudience =true,
+                validateLifetime =true,
+                validateIssuerSigningkey =true,
+                validIssuer = builder.Configuration["Jwt:Issuer"],
+                validAudience = builder.Configuration["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            };
+
+        });
+
+//add cores so forntend can talk
+//What it is: Registers CORS services in ASP.NET Core
+builder.services.AddCors(options =>{
+    options.AddPolicy("AllowFrontend",policy =>{
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3000")
+        .AllowAnyMethod() //allow CRUD post get
+        .AllowAnyHeader() //allow http heder
+        .AllowCredentials(); //allow cockies
+    });
+
+    });
+
+//register the services here using a interface + implemenetation 
+builder.Services.AddSingleton<IblobService, BlobService>();
+// add a cleen up 
+builder.services.AddHostedService<CleanupService>();
+
+var app = builder.Build();
+
+//add the http pipe line 
+//only use swagger in if its dev eneviorment
+if(app.Environment.IsDevelopment()){
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+//must need a way to covert HTTP to HTTPS for security
+app.UseHttpsRedirection();
+//activate the allowforntend policy i made above
+app.UseCors("AllowFrontend");
+//both middleware to auth and authxication
+app.UseAuthentication();
+app.UseAuthorization();
+//register all the end points 
+app.MapControllers();
 
 
 
