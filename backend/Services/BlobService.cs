@@ -84,14 +84,91 @@ public class BlobService : IBlobService{
         await foreach (var blobItem in _containerClient.GetBlobsAsync(prifix: $"{userId}/")){
             //now covert azure blobfile to my blobfileinfor DTO
             files.Add(new BlobFileInfo{
-                nameof = blobItem.Name,
-                sizeof = blobItem.Properties.ContentLength ?? 0,
+                Name = blobItem.Name,
+                Size = blobItem.Properties.ContentLength ?? 0,
                 LastModified = blobItem.properties.LastModified,
                 contentType = blobItem.Properties.contentType ?? "application/octet-stream"
             });
         }
+        return files;
     }
 
+    public async Task<bool> DeleteAsync(string blobName){
+        try {
+            var blobClient = _containerClient.GetBlobClient(blobName);
+
+            await blobClient.DeleteIfExistsAsync();
+
+            _logger.LogInformation($"File deleted : {blobName}");
+
+            return true;
+        }
+        catch (Exceptioon ex){
+            _logger.LogError(ex, $"Error deleting file: {blobName}");
+            return false;
+        }
+    }
+
+    // i need to downloade a blob file without auzre creditioals
+    //time limited 
+    public async Taask<string>GetsasUrlAsync(string blobName, int ExpiryMinutes = 15){
+      try {
+        var blobClient =_containerClient.GetBlobClient(blobName);
+
+        //varyfy the blob exists
+        if(!await blobClient.ExistsAsync()){
+            throw new FileNotFondException("File not found ",blobName);
+        }
+
+        var sasBuilder =new BlobSasBuilder{
+            BlobContainerName = _containerClient.Name,
+            blobName =blobName,
+            Resource = "b",
+
+            //start the timmer and end it make this expired 
+            StartsOn = DateTimeoffset.UtcNow.AddMinutes(-5),
+            ExpiresOn = DateTimeoffset.UtcNow.AddMinutes(ExpiryMinutes)
+        };
+
+        //only to read only nothing else 
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        var sasUri =blobClient.GenerateSasUri(sasBuilder);
+
+        _logger.LogInformaation($"Sas URL Genarated for : {blobName},expires in {ExpiryMinutes} minute");
+
+        return sasUri.ToString();
+      }  catch (Exception ex){
+        _logger.LogError(ex,$"Error generating SAS URL for ;{blobName}");
+        throw;
+      }
+    }
+
+    //make a archive for the old unused files that are not used most of the time
+    public async Task<bool> ArchiveAsync(string blobName){
+        try{
+            //get the main container and then the archive container to
+            var sourceBlobClient =_archiveContainerClient.GetBlobClient(blobName);
+            var destinationBlobClient =_archiveContainerClient.GetBlobClient(blobName);
+
+            //start the copy
+            await destinationBlobClient.StartCopyFromUriAsync(sourceBlobClient.Uri);
+
+            //add a timer to wait to stop it form finshing partialy
+            await Task.Delay(1000);
+
+            //now delete the orginal in the main container 
+            await sourceBlobClient.DeleteIfExistsAsync();
+
+            _logger.LogInformaation($"File archived:{blobName}");
+            return true ;
+
+        }catch(Exception ex ){
+            _logger.LogError(ex,$"Error archiving the file : {blobName}");
+            return false;
+
+        }
+    }
 
 }
 
