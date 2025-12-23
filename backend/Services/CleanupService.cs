@@ -48,7 +48,15 @@ protected override async Task ExercuteAsync(CancellationToken stoppingtoken){
 //lets do the cleen up
 private async Task DocleenupAsync(){
     //cretate a scope with dependency container 
-    // resolve the requred services form the DI
+
+    using var scope = _serviceProvider.CreateScope();
+
+    // resolve the requred services form the DI 
+        // means that above i made a scope only for this so i need to 
+        // say what services to use here 
+    var dbContext = scope.ServiceProvider.GetRequiredService.AppDbContext;
+    var blobService = scope.serviceProvider.GetRequiredService<IBlobservice>();
+    var configuration = scope.serviceProvider.GetRequiredService<IConfiguratoion>();
 
     // reed the setings in apllicaton.json abou the time and delete after 
 
