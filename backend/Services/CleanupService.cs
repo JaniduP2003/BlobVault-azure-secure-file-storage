@@ -58,15 +58,45 @@ private async Task DocleenupAsync(){
     var blobService = scope.serviceProvider.GetRequiredService<IBlobservice>();
     var configuration = scope.serviceProvider.GetRequiredService<IConfiguratoion>();
 
-    // reed the setings in apllicaton.json abou the time and delete after 
+    // reed the setings in apllicaton.json abou the time and delete after -
+    var archiveAfterDays = int.Parse(configaration["FileRetention:ArchiveAfterDelay"] ?? "90");
+    var DeleteAfterDays = int.Parse(configuration["FileRetention:DeleteAfterDays"] ?? "180");
+
+    //take the current time to 
+    var now = DateTime.UtcNow;
 
     //find files 
-
+    var filesToArchive = await dbContext.FileMetadata.Where(f =>
+                                                            !f.IsArchived &&
+                                                            f.UploadedAt< now.AddDays(-archiveAfterDays))
+                                                    .ToListAsync();
+    
     // loop throgh them and archive them
+    foreach(var file in filesToArchive){
+        if( await blobService.ArchiveAsync(file.BlobName)){
+            file.IsArchived =true;
+            file.ArchivePath = $"archive/{file.BlobName}";
+        }
+    }
+
+    var filesToDelete = await dbContext.FileMetadata.Where(f => 
+                                                            f.UploadedAt < now.AddDays(-DeleteAfterDays))
+                                                    .ToListAsync();
+    
+    foreach(var file in filesToArchive){
+        var blobPath = file.IsArchived ? filesToArchive! ; file.BlobName;
+        if (await blobService.DeleteAsync(blobPath)){
+            dbContext.FileMetadata.Remove(file);
+        }
+    }
 
     // amd find the old old files 
 
     //save the database chages 
-}
 
+    await dbContext.SaveChangesAsync();
+
+    //log the summery 
+    _logger.LogInformation($"Cleen up complete: {filesToArchive.Count} archived ,{filesToDelete.Count} deleted ");
+}
 }
