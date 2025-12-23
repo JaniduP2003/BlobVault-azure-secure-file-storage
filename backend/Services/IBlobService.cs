@@ -24,9 +24,8 @@ public interface IblobService{
 // above i made a blobfileinfr now lets make the attributes
 
 public class BlobFileInfo { 
-    public static Name {get;set;} = string.Empty;
+    public string  Name {get;set;} = string.Empty;
     public long Size {get;set;} 
     public DateTimeOffset? LastModified {get;set;}
-
     public string contentType {get;set; } =string.Empty;
 }
