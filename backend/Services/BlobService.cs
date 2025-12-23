@@ -67,8 +67,30 @@ public class BlobService : IBlobService{
             
             throw;
                     }
+
+
     }
 
+    //azure dont have folders 
+    //use iEnumreable so that the caller dont kneow its a list
+
+    public async Task<IEnumerable<BlobService>>ListFilesAsync(string userId){
+        //create a list to holde the data 
+        var file = new List<BlobFileInfo>();
+
+        //befor i used the id as the name so now can filer using the id 
+        //the server side can do this
+
+        await foreach (var blobItem in _containerClient.GetBlobsAsync(prifix: $"{userId}/")){
+            //now covert azure blobfile to my blobfileinfor DTO
+            files.Add(new BlobFileInfo{
+                nameof = blobItem.Name,
+                sizeof = blobItem.Properties.ContentLength ?? 0,
+                LastModified = blobItem.properties.LastModified,
+                contentType = blobItem.Properties.contentType ?? "application/octet-stream"
+            });
+        }
+    }
 
 
 }
