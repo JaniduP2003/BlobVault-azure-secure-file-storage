@@ -116,8 +116,20 @@ public class AuthController:ControllerBase{
     }
 
     // add the hashing 
+    // converts plain text to hash 
+    private static string HashPassword(string password){
+        using var sha256 = sha256.Create(); // crtate a hash SHA object 
+        // /Encoding.UTF8.GetBytes(password) → converts password string to bytes.
+        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        //Converts the binary hash to Base64 string (e.g., "AbCdEf123...").
+        return convert.ToBase64String(hashedBytes);
+    }
 
     //add the veryfypassword 
+    // chacks if the user enetrd password machers the hashed passwored
+    private static bool VarifyPassword(string password){
+        return HashPassword(password) == hash;
+    }
 }
 
 }
