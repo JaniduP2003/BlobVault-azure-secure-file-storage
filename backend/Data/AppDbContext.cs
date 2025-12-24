@@ -16,6 +16,7 @@ public class Appdbcontext:Dbcontext{
     //{ get; set; } = Read/Write Access
     // ther is two shelfs of users and metadata in the DB librarry
     public Dbset<User> Users {set;get;}
+    //“My database has a table called Users, and each row maps to a User object.”
 
     public Dbset<FileMetadata> FileMetadata {set;get;}
     //filematadata name is the same but inside <> is the table in the database in MODELS
