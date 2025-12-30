@@ -50,10 +50,10 @@ builder.Services.AddDbContext<AppDbContext>( options =>
        //lamdafuctions has a vaeriable named options and after => its called 
        // and added to use inmemerydatabse
 
-//read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
+// read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
 var jwtKeyString = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"] ?? "DevelopmentJwtKey0123456789";
-// derive a 256-bit key by hashing the configured key to ensure HS256 minimum key size
-var jwtKeyBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(jwtKeyString));
+// Derive a 512-bit key by hashing the configured key with SHA-512 so it matches HS512-sized signing keys
+var jwtKeyBytes = System.Security.Cryptography.SHA512.HashData(System.Text.Encoding.UTF8.GetBytes(jwtKeyString));
 //add the jwt  barrer token schema
 //jwt has a validation chackes i need to add this 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -86,6 +86,12 @@ builder.Services.AddCors(options =>{
 builder.Services.AddSingleton<IBlobService, BlobService>();
 // add a cleen up 
 builder.Services.AddHostedService<CleanupService>();
+
+// If a background service throws, don't stop the whole host during development.
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+});
 
 var app = builder.Build();
 

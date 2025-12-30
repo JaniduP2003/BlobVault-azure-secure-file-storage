@@ -13,6 +13,7 @@ public class BlobService : IBlobService{
     private readonly BlobContainerClient _containerClient; //rchive current files 
     private readonly BlobContainerClient _archiveContainerClient; // store inactive files 
     private readonly ILogger<BlobService> _logger; // log erros
+    private bool _isInitialized = false;
 
     //this is the constructer it runns every time a object is created     
 
@@ -29,9 +30,20 @@ public class BlobService : IBlobService{
         _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
         _archiveContainerClient = blobServiceClient.GetBlobContainerClient($"{containerName}-archive");
 
-        //create the contatiners if they dont exist
-        _containerClient.CreateIfNotExists();
-        _archiveContainerClient.CreateIfNotExists();
+        // Try to create the containers if they don't exist. If storage is unavailable (e.g. Azurite not running),
+        // log the error and keep the service alive; individual operations will fail gracefully.
+        try
+        {
+            _containerClient.CreateIfNotExists();
+            _archiveContainerClient.CreateIfNotExists();
+            // mark as initialized only if creation succeeded
+            _isInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Azure Blob storage is not available. Blob operations will be disabled until storage is reachable.");
+            // leave _isInitialized as false so methods can handle unavailability
+        }
     }
 
     //now to uplode file to the blob 
@@ -82,6 +94,12 @@ public class BlobService : IBlobService{
         //befor i used the id as the name so now can filer using the id 
         //the server side can do this
 
+        if (!_isInitialized)
+        {
+            _logger.LogWarning("Storage unavailable: ListFilesAsync returning empty list for user {UserId}", userId);
+            return files;
+        }
+
         await foreach (var blobItem in _containerClient.GetBlobsAsync(prefix: $"{userId}/")){
             //now covert azure blobfile to my blobfileinfor DTO
             files.Add(new BlobFileInfo{
@@ -98,6 +116,7 @@ public class BlobService : IBlobService{
     {
         try
         {
+            if (!_isInitialized) throw new FileNotFoundException("Storage unavailable", blobName);
             var blobClient = _containerClient.GetBlobClient(blobName);
             var response = await blobClient.DownloadAsync();
             return response.Value.Content;
@@ -116,6 +135,10 @@ public class BlobService : IBlobService{
 
     public async Task<bool> DeleteAsync(string blobName){
         try {
+            if (!_isInitialized) {
+                _logger.LogWarning("Storage unavailable: DeleteAsync skipped for {BlobName}", blobName);
+                return false;
+            }
             var blobClient = _containerClient.GetBlobClient(blobName);
 
             await blobClient.DeleteIfExistsAsync();
@@ -134,6 +157,7 @@ public class BlobService : IBlobService{
     //time limited 
     public async Task<string>GetSasUrlAsync(string blobName, int ExpiryMinutes = 15){
       try {
+    if (!_isInitialized) throw new FileNotFoundException("Storage unavailable", blobName);
         var blobClient =_containerClient.GetBlobClient(blobName);
 
         //varyfy the blob exists
@@ -168,6 +192,10 @@ public class BlobService : IBlobService{
     //make a archive for the old unused files that are not used most of the time
     public async Task<bool> ArchiveAsync(string blobName){
         try{
+            if (!_isInitialized) {
+                _logger.LogWarning("Storage unavailable: ArchiveAsync skipped for {BlobName}", blobName);
+                return false;
+            }
             //get the main container and then the archive container to
             var sourceBlobClient =_containerClient.GetBlobClient(blobName);
             var destinationBlobClient =_archiveContainerClient.GetBlobClient(blobName);
