@@ -9,23 +9,19 @@
 // adn a delate using the blob name 
 //get emep links for 15mins
 // and make a bool to move to archive for longthwem storage
+using backend.Models;
+using System.IO;
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace backend.Services;
 
-public interface IblobService{
-    Task<(string blobName , string Url)> uplodeAsync(string userId , IFormFile file);
-    Task<stream> DownloadAsync(string blobName);
-    Task<IEnumerable<BlobFileInfo>> ListFilesAsync(string userid); 
+public interface IBlobService{
+    Task<(string BlobName , string Url)> UploadAsync(string userId , IFormFile file);
+    Task<Stream> DownloadAsync(string blobName);
+    Task<IEnumerable<BlobFileInfo>> ListFilesAsync(string userId); 
     Task<bool> DeleteAsync(string blobName);
     Task<string> GetSasUrlAsync(string blobName, int ExpiryMinutes =15);
     Task<bool> ArchiveAsync(string blobName);
-}
-
-// above i made a blobfileinfr now lets make the attributes
-
-public class BlobFileInfo { 
-    public string  Name {get;set;} = string.Empty;
-    public long Size {get;set;} 
-    public DateTimeOffset? LastModified {get;set;}
-    public string contentType {get;set; } =string.Empty;
 }

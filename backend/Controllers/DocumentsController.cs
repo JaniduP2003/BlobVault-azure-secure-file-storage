@@ -1,8 +1,8 @@
 // this has a logged user can do in the blob like downloading and getall like that
 
-using Microsoft.AspNetCore.Authorization
-using Microsoft.ASpNoteCore.Mvc;
-using Microsoft.EntityFrameWorkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 using backend.Services;
@@ -15,19 +15,19 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 
-public class DocumentsController: controllerBase{
+public class DocumentsController: ControllerBase{
 
     private readonly IBlobService _blobService;
     private readonly AppDbContext _context;
     private readonly ILogger<DocumentsController> _logger ;
 
-    public DocumentsController((IBlobService blobService , AppDbContext context ,ILogger<DocumentsController> logger )){
+    public DocumentsController(IBlobService blobService , AppDbContext context ,ILogger<DocumentsController> logger ){
         _blobService = blobService;
         _context = context;
         _logger = logger ;
     }
 
-    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.value ?? "";
+    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
     //ClaimTypes.NameIdentifier its just the name of the autheticated user 
     // the befor claim
     //FindFirst() means “From all the claims inside this token, find the first claim
@@ -36,7 +36,7 @@ public class DocumentsController: controllerBase{
 
     [HttpPost("upload")]
     //IFormFile is a interfece to look inside the formdata body
-    public async Task<IActionResult> Uplode([FromForm] IFormFile file ){
+    public async Task<IActionResult> Upload([FromForm] IFormFile file ){
         if( file == null || file.Length == 0)
             return BadRequest(new{message = "No file provided "});
         if(file.Length > 50 * 1024 * 1024)
@@ -44,8 +44,8 @@ public class DocumentsController: controllerBase{
         
   // Validate file type
         var allowedTypes = new[] { "application/pdf", "image/jpeg", "image/png", "image/gif", 
-            "application/msword", "application/vnd. openxmlformats-officedocument.wordprocessingml. document",
-            "application/vnd. ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+            "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
        
         if (!allowedTypes.Contains(file.ContentType))
             return BadRequest(new { message = "File type not allowed" });
@@ -55,39 +55,39 @@ public class DocumentsController: controllerBase{
             var(blobName, url) = await _blobService.UploadAsync(userId ,file );
 
             var metadata = new FileMetadata{
-                FileName = file.Filename,
+                FileName = file.FileName,
                 BlobName = blobName,
                 UserId = userId, 
                 FileSize = file.Length,
-                contentType = file.contentType,
-                UplodedAt = dateTime.UtcNow
+                ContentType = file.ContentType,
+                UploadedAt = DateTime.UtcNow
 
             };
 
             _context.FileMetadata.Add(metadata);
             await _context.SaveChangesAsync();
 
-            return ok (new{
+            return Ok (new{
                 id = metadata.Id,
                 fileName =metadata.FileName,
                 FileSize = metadata.FileSize,
                 ContentType = metadata.ContentType,
-                uplodedAt = metadata.UplodedAt,
+                uploadedAt = metadata.UploadedAt,
                 url
             });
         } catch(Exception ex){
             _logger.LogError(ex,"Error uploding the file ");
-            return statusCode(500,new{ message = "Error uploding the file "});
+            return StatusCode(500,new{ message = "Error uploding the file "});
 
         }
     
      }
 
-     [httpGet]
+     [HttpGet]
      public async Task<IActionResult> GetFiles(){
         try{
             var userId = GetUserId();
-            var Files = await _context.FileMetadata.Where(f=> f.UserId == userId 
+            var files = await _context.FileMetadata.Where(f=> f.UserId == userId 
                                                                     && !f.IsArchived)
                                                     .OrderByDescending(f=> f.UploadedAt)
                                                     .Select(f => new{
@@ -95,10 +95,10 @@ public class DocumentsController: controllerBase{
                                                         f.FileName,
                                                         f.FileSize,
                                                         f.ContentType,
-                                                        f.UplodedAt,
+                                                        f.UploadedAt,
                                                         f.LastAccessedAt
                                                     }).ToListAsync();
-            return ok(files);
+            return Ok(files);
         }
         catch(Exception ex){
             _logger.LogError(ex,"Error listing the files");
@@ -114,7 +114,7 @@ public class DocumentsController: controllerBase{
         {
             var userId = GetUserId(); // the one () you made above 
             var file = await _context.FileMetadata.FirstOrDefaultAsync(
-                                                    f => f.id == id &&
+                                                    f => f.Id == id &&
                                                     f.UserId == userId
                                                     );
             //“From the database, find the first file whose Id matches 
@@ -128,7 +128,7 @@ public class DocumentsController: controllerBase{
             file.LastAccessedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return file(stream, file.ContentType, file.FileName);
+            return File(stream, file.ContentType, file.FileName);
         }
         catch (FileNotFoundException)
         {
@@ -190,7 +190,7 @@ public class DocumentsController: controllerBase{
             if (file == null)
                 return NotFound(new { message = "File not found" });
 
-            var sasUrl = await _blobService. GetSasUrlAsync(file. BlobName, expiryMinutes);
+            var sasUrl = await _blobService.GetSasUrlAsync(file.BlobName, expiryMinutes);
             //SAS = Shared Access Signature It is:
             // A normal blob URL , With a cryptographic token ,Grants temporary permissions
 

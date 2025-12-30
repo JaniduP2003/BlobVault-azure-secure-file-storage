@@ -3,8 +3,9 @@
 
 using Azure;
 using Azure.Storage.Blobs;
-using Azure.Storege.Blobs.Models;
+using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using backend.Models;
 
 namespace backend.Services;
 
@@ -21,12 +22,12 @@ public class BlobService : IBlobService{
 
         //read form the aplication.cs the info
         var connectionString = configuration["AzureStorage:ConnectionString"];
-        var conatinerName = configuration["AzureStorage:ContainerName"];
+        var containerName = configuration["AzureStorage:ContainerName"];
 
         var blobServiceClient = new BlobServiceClient(connectionString);
 
-        _containerClient = blobServiceClient.GetBlobClient(containerName);
-        _archiveContainerClient = blobServiceClient.GetBlobContainerClient($"{conatinerName}-archive");
+        _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+        _archiveContainerClient = blobServiceClient.GetBlobContainerClient($"{containerName}-archive");
 
         //create the contatiners if they dont exist
         _containerClient.CreateIfNotExists();
@@ -37,7 +38,7 @@ public class BlobService : IBlobService{
     //to uplde it must organized by user for thet
     // -userId , a file ,returns Truple Containing blobname and full url of the blob
 
-    public async Tassk<(string BlobName,string Url)> UplodeAsync(string userId,IFormFile file){
+    public async Task<(string BlobName,string Url)> UploadAsync(string userId,IFormFile file){
         try{
             var fileName = Path.GetFileName(file.FileName);
 
@@ -47,23 +48,23 @@ public class BlobService : IBlobService{
             var blobClient =_containerClient.GetBlobClient(blobName);
 
             //make shure the browser knows what type pdf or image 
-            var BlobHttpHeaders =new BlobHttpHeders{
-                _ContentType = file.ContentType
+            var blobHttpHeaders =new BlobHttpHeaders{
+                ContentType = file.ContentType
             };
 
             //open steem and uplode
 
-            using var stream = file.OpenReadStreem();
-            await blobClient.UplodeAsync(stream, new BlobUplodeOptions{
-                BlobHttpHeaders =BlobHttpHeaders
+            using var stream = file.OpenReadStream();
+            await blobClient.UploadAsync(stream, new BlobUploadOptions{
+                HttpHeaders =blobHttpHeaders
             });
 
-            _logger.LogInformaation($"File Uploded: {blobName}");
+            _logger.LogInformation($"File Uploaded: {blobName}");
 
-            return (blobName ,blobClient.Url.ToString());
+            return (blobName ,blobClient.Uri.ToString());
         }
         catch(Exception ex){
-            _logger.LogError(ex, "Error Uplodeing File ");
+            _logger.LogError(ex, "Error Uploading File ");
             
             throw;
                     }
@@ -74,23 +75,43 @@ public class BlobService : IBlobService{
     //azure dont have folders 
     //use iEnumreable so that the caller dont kneow its a list
 
-    public async Task<IEnumerable<BlobService>>ListFilesAsync(string userId){
+    public async Task<IEnumerable<BlobFileInfo>>ListFilesAsync(string userId){
         //create a list to holde the data 
-        var file = new List<BlobFileInfo>();
+        var files = new List<BlobFileInfo>();
 
         //befor i used the id as the name so now can filer using the id 
         //the server side can do this
 
-        await foreach (var blobItem in _containerClient.GetBlobsAsync(prifix: $"{userId}/")){
+        await foreach (var blobItem in _containerClient.GetBlobsAsync(prefix: $"{userId}/")){
             //now covert azure blobfile to my blobfileinfor DTO
             files.Add(new BlobFileInfo{
                 Name = blobItem.Name,
                 Size = blobItem.Properties.ContentLength ?? 0,
-                LastModified = blobItem.properties.LastModified,
-                contentType = blobItem.Properties.contentType ?? "application/octet-stream"
+                LastModified = blobItem.Properties.LastModified,
+                ContentType = blobItem.Properties.ContentType ?? "application/octet-stream"
             });
         }
         return files;
+    }
+
+    public async Task<Stream> DownloadAsync(string blobName)
+    {
+        try
+        {
+            var blobClient = _containerClient.GetBlobClient(blobName);
+            var response = await blobClient.DownloadAsync();
+            return response.Value.Content;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            _logger.LogError(ex, $"File not found: {blobName}");
+            throw new FileNotFoundException("File not found", blobName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error downloading file: {blobName}");
+            throw;
+        }
     }
 
     public async Task<bool> DeleteAsync(string blobName){
@@ -103,7 +124,7 @@ public class BlobService : IBlobService{
 
             return true;
         }
-        catch (Exceptioon ex){
+        catch (Exception ex){
             _logger.LogError(ex, $"Error deleting file: {blobName}");
             return false;
         }
@@ -111,23 +132,23 @@ public class BlobService : IBlobService{
 
     // i need to downloade a blob file without auzre creditioals
     //time limited 
-    public async Taask<string>GetsasUrlAsync(string blobName, int ExpiryMinutes = 15){
+    public async Task<string>GetSasUrlAsync(string blobName, int ExpiryMinutes = 15){
       try {
         var blobClient =_containerClient.GetBlobClient(blobName);
 
         //varyfy the blob exists
         if(!await blobClient.ExistsAsync()){
-            throw new FileNotFondException("File not found ",blobName);
+            throw new FileNotFoundException("File not found ",blobName);
         }
 
         var sasBuilder =new BlobSasBuilder{
             BlobContainerName = _containerClient.Name,
-            blobName =blobName,
+            BlobName =blobName,
             Resource = "b",
 
             //start the timmer and end it make this expired 
-            StartsOn = DateTimeoffset.UtcNow.AddMinutes(-5),
-            ExpiresOn = DateTimeoffset.UtcNow.AddMinutes(ExpiryMinutes)
+            StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
+            ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(ExpiryMinutes)
         };
 
         //only to read only nothing else 
@@ -135,7 +156,7 @@ public class BlobService : IBlobService{
 
         var sasUri =blobClient.GenerateSasUri(sasBuilder);
 
-        _logger.LogInformaation($"Sas URL Genarated for : {blobName},expires in {ExpiryMinutes} minute");
+        _logger.LogInformation($"Sas URL Generated for : {blobName},expires in {ExpiryMinutes} minute");
 
         return sasUri.ToString();
       }  catch (Exception ex){
@@ -148,7 +169,7 @@ public class BlobService : IBlobService{
     public async Task<bool> ArchiveAsync(string blobName){
         try{
             //get the main container and then the archive container to
-            var sourceBlobClient =_archiveContainerClient.GetBlobClient(blobName);
+            var sourceBlobClient =_containerClient.GetBlobClient(blobName);
             var destinationBlobClient =_archiveContainerClient.GetBlobClient(blobName);
 
             //start the copy
@@ -160,7 +181,7 @@ public class BlobService : IBlobService{
             //now delete the orginal in the main container 
             await sourceBlobClient.DeleteIfExistsAsync();
 
-            _logger.LogInformaation($"File archived:{blobName}");
+            _logger.LogInformation($"File archived:{blobName}");
             return true ;
 
         }catch(Exception ex ){

@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-// using backend.Data;
-// using backend.Services;
-// using System.Text;
+using backend.Data;
+using backend.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,31 +13,31 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 //add swagger //this dose not add neyething just adds swagger to the apps
-builder.Services.AddSwaggerGen(c=>{
-    c.SwaggerDoc("v1",new OpenApiInfo{Title ="Secure Document API",Version ="v1"});
-    c.AddSecurityDefinition("Bearer",new OpenApiSecuirityScheme
-    {
-        Description ="Jwt Autorization Header USing Barrer scheme",
-        nameof="Authorization",
-        In=ParameterLocation.Header,
-        Type=SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+// builder.Services.AddSwaggerGen(c=>{
+//     c.SwaggerDoc("v1",new OpenApiInfo{Title ="Secure Document API",Version ="v1"});
+//     c.AddSecurityDefinition("Bearer",new OpenApiSecurityScheme
+//     {
+//         Description ="Jwt Authorization Header Using Bearer scheme",
+//         Name="Authorization",
+//         In=ParameterLocation.Header,
+//         Type=SecuritySchemeType.ApiKey,
+//         Scheme = "Bearer"
 
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement{
-        {
-            new OpenApiSecurityScheme{
-                Referenc = new OpenApiRefrence{
-                    Type = referenceType.SequrityScheme,
-                    Id ="bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
+//     });
+//     c.AddSecurityRequirement(new OpenApiSecurityRequirement{
+//         {
+//             new OpenApiSecurityScheme{
+//                 Reference = new OpenApiReference{
+//                     Type = ReferenceType.SecurityScheme,
+//                     Id ="Bearer"
+//                 }
+//             },
+//             Array.Empty<string>()
+//         }
+//     });
 
 
-});
+// });
 
 //needs to register the database so others can use it inject it into them 
 // first needs to register it as"App db context"
@@ -45,7 +45,7 @@ builder.Services.AddSwaggerGen(c=>{
 //🧠 What is AppDbContext? Defines database tables as C# classes. 
 // when the app is restared this data is removed
 
-builder.Services.AppDbContext<AppDbContext>( options =>
+builder.Services.AddDbContext<AppDbContext>( options =>
        options.UseInMemoryDatabase("secureDocumentdb"));
        //lamdafuctions has a vaeriable named options and after => its called 
        // and added to use inmemerydatabse
@@ -54,15 +54,15 @@ builder.Services.AppDbContext<AppDbContext>( options =>
 var jwtKey = builder.Configuration["jwt:jwtKey"];
 //add the jwt  barrer token schema
 //jwt has a validation chackes i need to add this 
-builder.services.AddAuthentication(JwtBerrerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer( options =>{
             options.TokenValidationParameters = new TokenValidationParameters{
                 ValidateIssuer = true,
                 ValidateAudience =true,
-                validateLifetime =true,
-                validateIssuerSigningkey =true,
-                validIssuer = builder.Configuration["Jwt:Issuer"],
-                validAudience = builder.Configuration["Jwt:Audience"],
+                ValidateLifetime =true,
+                ValidateIssuerSigningKey =true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidAudience = builder.Configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
             };
 
@@ -70,7 +70,7 @@ builder.services.AddAuthentication(JwtBerrerDefaults.AuthenticationScheme)
 
 //add cores so forntend can talk
 //What it is: Registers CORS services in ASP.NET Core
-builder.services.AddCors(options =>{
+builder.Services.AddCors(options =>{
     options.AddPolicy("AllowFrontend",policy =>{
         policy.WithOrigins("http://localhost:3000", "http://localhost:3000")
         .AllowAnyMethod() //allow CRUD post get
@@ -81,17 +81,17 @@ builder.services.AddCors(options =>{
     });
 
 //register the services here using a interface + implemenetation 
-builder.Services.AddSingleton<IblobService, BlobService>();
+builder.Services.AddSingleton<IBlobService, BlobService>();
 // add a cleen up 
-builder.services.AddHostedService<CleanupService>();
+builder.Services.AddHostedService<CleanupService>();
 
 var app = builder.Build();
 
 //add the http pipe line 
 //only use swagger in if its dev eneviorment
 if(app.Environment.IsDevelopment()){
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    // app.UseSwagger();
+    // app.UseSwaggerUI();
 }
 
 //must need a way to covert HTTP to HTTPS for security
