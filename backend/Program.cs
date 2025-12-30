@@ -50,8 +50,10 @@ builder.Services.AddDbContext<AppDbContext>( options =>
        //lamdafuctions has a vaeriable named options and after => its called 
        // and added to use inmemerydatabse
 
-//read the key for the appsetting 
-var jwtKey = builder.Configuration["jwt:jwtKey"];
+//read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
+var jwtKeyString = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"] ?? "DevelopmentJwtKey0123456789";
+// derive a 256-bit key by hashing the configured key to ensure HS256 minimum key size
+var jwtKeyBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(jwtKeyString));
 //add the jwt  barrer token schema
 //jwt has a validation chackes i need to add this 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -63,7 +65,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 ValidateIssuerSigningKey =true,
                 ValidIssuer = builder.Configuration["Jwt:Issuer"],
                 ValidAudience = builder.Configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes)
             };
 
         });

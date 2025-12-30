@@ -92,9 +92,19 @@ public class AuthController:ControllerBase{
 
     private string GenerateJwtToken(User user ){
 
-        //use the jwt key form the config and make a NEW KEY
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key,SecurityAlgorithms.HmacSha256);
+        // Read the key from config (try standard then legacy) and ensure it's long enough for HS256
+        var cfgKey = _configuration["Jwt:Key"] ?? _configuration["jwt:jwtKey"];
+        var fallbackKey = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // 64 bytes
+        var keyString = cfgKey ?? fallbackKey;
+        if (Encoding.UTF8.GetBytes(keyString).Length < 32)
+        {
+            keyString = fallbackKey;
+        }
+
+    // Ensure the signing key meets HS256 minimum size by hashing the configured key to 256 bits
+    var keyBytes = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(keyString));
+    var key = new SymmetricSecurityKey(keyBytes);
+    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
         var claims = new []{
             new Claim(ClaimTypes.NameIdentifier ,user.Id.ToString()),
