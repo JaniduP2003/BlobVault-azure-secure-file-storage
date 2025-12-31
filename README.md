@@ -19,6 +19,7 @@ Modern cloud file workflow system using **Next.js** and **.NET** with **Azure Bl
 - [Configuration](#-configuration)
 - [Project Structure](#-project-structure)
 - [API Documentation](#-api-documentation)
+- [Blob Storage Integration Test (Manual)](#-blob-storage-integration-test-manual)
 - [Background Services](#-background-services)
 - [Security Features](#-security-features)
 - [Contributing](#-contributing)
@@ -405,6 +406,56 @@ Response:
   "expiresAt": "2025-12-24T00:00:00Z"
 }
 ```
+
+---
+
+## 🧪 Blob Storage Integration Test (Manual)
+
+Follow these steps to verify your backend, Azurite, and blob storage integration:
+
+### 1. Register a User
+
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"testuser@example.com","password":"Password123!"}'
+```
+
+- Save the `token` from the response.
+
+### 2. Upload a File
+
+```bash
+curl -X POST http://localhost:8080/api/documents/upload \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "file=@<PATH_TO_FILE>"
+```
+
+- Replace `<TOKEN>` with your JWT and `<PATH_TO_FILE>` with a real file path.
+
+### 3. List Files
+
+```bash
+curl -X GET http://localhost:8080/api/documents \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+- You should see your uploaded file in the response.
+
+### 4. Download a File
+
+```bash
+curl -X GET "http://localhost:8080/api/documents/download?blobName=<BLOB_NAME>" \
+  -H "Authorization: Bearer <TOKEN>" -o downloaded_file
+```
+
+- Replace `<BLOB_NAME>` with the name from the list response.
+
+### 5. (Optional) Check Azurite Data
+
+- Inspect the `azurite/` folder in your project root. You should see new files in `__blobstorage__` after upload.
+
+If all steps succeed, your blob storage integration is working!
 
 ---
 
