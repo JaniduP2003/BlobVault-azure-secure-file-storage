@@ -1,9 +1,9 @@
 # Frontend Dockerfile (Next.js)
 FROM node:20-alpine AS base
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm install
-COPY frontend/. .
+COPY . .
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]
