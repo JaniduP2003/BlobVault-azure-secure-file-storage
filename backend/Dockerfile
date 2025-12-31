@@ -5,10 +5,9 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
-COPY backend/*.csproj ./
+COPY *.csproj ./
 RUN dotnet restore ./backend.csproj
-COPY backend/. ./
-WORKDIR /src
+COPY . ./
 RUN dotnet publish ./backend.csproj -c Release -o /app/publish
 
 FROM base AS final
