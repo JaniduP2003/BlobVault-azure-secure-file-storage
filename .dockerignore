@@ -1,0 +1,11 @@
+# Ignore node_modules and build output
+frontend/node_modules
+frontend/.next
+backend/bin
+backend/obj
+azurite/
+.git
+.gitignore
+.vscode
+*.md
+*.log
