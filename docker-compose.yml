@@ -16,7 +16,7 @@ services:
     container_name: backend
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFeqGh0pJ+0m+E0xKZb6Y9r5n9X5y6l9r9F1X1y0z2b9X0N4u6+g==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      - AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     depends_on:
       - azurite
     ports:
