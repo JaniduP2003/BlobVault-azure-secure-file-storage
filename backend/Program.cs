@@ -51,7 +51,13 @@ builder.Services.AddDbContext<AppDbContext>( options =>
        // and added to use inmemerydatabse
 
 // read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
-var jwtKeyString = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"] ?? "DevelopmentJwtKey0123456789";
+var cfgKey = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"];
+var fallbackKey = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // 64 bytes
+var jwtKeyString = cfgKey ?? fallbackKey;
+if (System.Text.Encoding.UTF8.GetBytes(jwtKeyString).Length < 64)
+{
+    jwtKeyString = fallbackKey;
+}
 // Derive a 512-bit key by hashing the configured key with SHA-512 so it matches HS512-sized signing keys
 var jwtKeyBytes = System.Security.Cryptography.SHA512.HashData(System.Text.Encoding.UTF8.GetBytes(jwtKeyString));
 //add the jwt  barrer token schema
