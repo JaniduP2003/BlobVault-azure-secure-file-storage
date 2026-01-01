@@ -9,13 +9,7 @@ services:
       - "10000:10000"
       - "10001:10001"
       - "10002:10002"
-    command: ["azurite", "--location", "/data", "--debug", "/data/debug.log"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10000/devstoreaccount1?restype=service&comp=properties"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    command: ["azurite", "--location", "/data", "--debug", "/data/debug.log", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0"]
 
   backend:
     build: ./backend
@@ -24,17 +18,16 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     depends_on:
-      azurite:
-        condition: service_healthy
+      - azurite
     ports:
-      - "8080:8080"
+      - "8081:8080"
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     container_name: frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:8081
     depends_on:
       - backend
     ports:
