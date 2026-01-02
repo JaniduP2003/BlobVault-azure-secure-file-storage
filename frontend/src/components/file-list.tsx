@@ -1,21 +1,51 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { FileText, FileCode, ImageIcon, FileIcon, MoreVertical, Download, Trash, ExternalLink } from "lucide-react"
-import { format } from "date-fns"
+import * as React from "react";
+import {
+  FileText,
+  FileCode,
+  ImageIcon,
+  FileIcon,
+  MoreVertical,
+  Trash,
+  ExternalLink,
+  X,
+} from "lucide-react";
+import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { ShareDialog } from "@/components/share-dialog"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ShareDialog } from "@/components/share-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data based on API contract
-const MOCK_FILES = [
+interface FileItem {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  uploadedAt: string;
+  lastAccessedAt: string;
+  url?: string;
+}
+
+const MOCK_FILES: FileItem[] = [
   {
     id: "1",
     fileName: "Q4_Report.pdf",
@@ -44,39 +74,60 @@ const MOCK_FILES = [
     id: "4",
     fileName: "Budget_2024.xlsx",
     fileSize: 450000,
-    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    contentType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     uploadedAt: "2023-12-28T09:00:00Z",
     lastAccessedAt: "2023-12-29T11:20:00Z",
   },
-]
+];
 
 export function FileList() {
-  const { toast } = useToast()
-  const [files, setFiles] = React.useState(MOCK_FILES)
-  const [isLoading, setIsLoading] = React.useState(false)
+  const { toast } = useToast();
+  const [files, setFiles] = React.useState<FileItem[]>(MOCK_FILES);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const formatSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (
+      Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    );
+  };
 
   const getIcon = (type: string) => {
-    if (type.includes("pdf")) return <FileText className="h-5 w-5 text-red-500" />
-    if (type.includes("image")) return <ImageIcon className="h-5 w-5 text-blue-500" />
-    if (type.includes("spreadsheet") || type.includes("excel")) return <FileCode className="h-5 w-5 text-emerald-500" />
-    return <FileIcon className="h-5 w-5 text-muted-foreground" />
-  }
+    if (type.includes("pdf"))
+      return <FileText className="h-5 w-5 text-red-500" />;
+    if (type.includes("image"))
+      return <ImageIcon className="h-5 w-5 text-blue-500" />;
+    if (type.includes("spreadsheet") || type.includes("excel"))
+      return <FileCode className="h-5 w-5 text-emerald-500" />;
+    return <FileIcon className="h-5 w-5 text-muted-foreground" />;
+  };
 
   const handleDelete = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id))
+    setFiles((prev) => prev.filter((f) => f.id !== id));
     toast({
       title: "File deleted",
-      description: "The file has been moved to trash.",
-    })
-  }
+      description: "The file has been permanently removed.",
+    });
+  };
+
+  const handleFileClick = (file: FileItem) => {
+    console.log("[v0] Handling file click for:", file.fileName);
+    if (
+      file.contentType.includes("pdf") ||
+      file.contentType.includes("image")
+    ) {
+      window.open(`/api/documents/preview/${file.id}`, "_blank");
+    } else {
+      const link = document.createElement("a");
+      link.href = `/api/documents/download/${file.id}`;
+      link.download = file.fileName;
+      link.click();
+    }
+  };
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
@@ -93,16 +144,26 @@ export function FileList() {
           </thead>
           <tbody className="divide-y">
             {files.map((file) => (
-              <tr key={file.id} className="group hover:bg-muted/30 transition-colors">
+              <tr
+                key={file.id}
+                className="group hover:bg-muted/30 transition-colors"
+              >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background group-hover:border-primary/50 transition-colors">
                       {getIcon(file.contentType)}
                     </div>
-                    <span className="font-medium truncate max-w-[200px]">{file.fileName}</span>
+                    <button
+                      onClick={() => handleFileClick(file)}
+                      className="font-medium truncate max-w-[200px] text-left hover:text-primary hover:underline transition-all cursor-pointer"
+                    >
+                      {file.fileName}
+                    </button>
                   </div>
                 </td>
-                <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{formatSize(file.fileSize)}</td>
+                <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">
+                  {formatSize(file.fileSize)}
+                </td>
                 <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                   {format(new Date(file.uploadedAt), "MMM d, yyyy")}
                 </td>
@@ -111,12 +172,39 @@ export function FileList() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                      <a href={`/api/documents/download/${file.id}`} download>
-                        <Download className="h-4 w-4" />
-                      </a>
-                    </Button>
                     <ShareDialog fileId={file.id} />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Are you absolutely sure?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete <strong>{file.fileName}</strong> from our
+                            servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(file.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -124,16 +212,45 @@ export function FileList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleFileClick(file)}
+                        >
                           <ExternalLink className="h-4 w-4" /> Preview
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                          onClick={() => handleDelete(file.id)}
-                        >
-                          <Trash className="h-4 w-4" /> Delete
-                        </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                              <Trash className="h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Are you absolutely sure?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will
+                                permanently delete{" "}
+                                <strong>{file.fileName}</strong> from our
+                                servers.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(file.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -144,5 +261,5 @@ export function FileList() {
         </table>
       </div>
     </div>
-  )
+  );
 }
