@@ -1,27 +1,75 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Cloud, Files, Clock, Star, Trash2, Search, Settings, HelpCircle, Menu, HardDrive } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { UploadDialog } from "@/components/upload-dialog"
+import * as React from "react";
+import {
+  Cloud,
+  Files,
+  Clock,
+  Star,
+  Trash2,
+  Search,
+  Settings,
+  HelpCircle,
+  Menu,
+  HardDrive,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { UploadDialog } from "@/components/upload-dialog";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [username, setUsername] = React.useState<string | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    const storedUsername = localStorage.getItem("username");
+    setUsername(storedUsername);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    localStorage.removeItem("email");
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    router.push("/login");
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Header */}
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="md:flex"
+          >
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 font-bold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Cloud className="h-5 w-5" />
             </div>
-            <span className="hidden tracking-tight md:inline-block">BLOBDRIVE</span>
+            <span className="hidden tracking-tight md:inline-block">
+              BLOBDRIVE
+            </span>
           </div>
         </div>
 
@@ -46,20 +94,50 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="hidden sm:flex">
             <Settings className="h-5 w-5" />
           </Button>
-          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-teal-400" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-teal-400 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {username || "User"}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {localStorage.getItem("email") || "user@example.com"}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside
-          className={`w-64 flex-col border-r bg-muted/30 transition-all duration-300 ${isSidebarOpen ? "flex" : "hidden"}`}
+          className={`w-64 flex-col border-r bg-muted/30 transition-all duration-300 ${
+            isSidebarOpen ? "flex" : "hidden"
+          }`}
         >
           <div className="p-4">
             <UploadDialog />
           </div>
           <nav className="flex-1 space-y-1 px-2">
-            <NavItem icon={<Files className="h-4 w-4" />} label="My Files" active />
+            <NavItem
+              icon={<Files className="h-4 w-4" />}
+              label="My Files"
+              active
+            />
             <NavItem icon={<Clock className="h-4 w-4" />} label="Recent" />
             <NavItem icon={<Star className="h-4 w-4" />} label="Starred" />
             <NavItem icon={<Trash2 className="h-4 w-4" />} label="Trash" />
@@ -77,7 +155,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div className="h-full w-[12%] bg-primary" />
               </div>
-              <Button variant="outline" size="sm" className="mt-2 w-full text-xs bg-transparent">
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs bg-transparent"
+              >
                 Upgrade Storage
               </Button>
             </div>
@@ -88,16 +170,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
-  )
+  );
 }
 
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
+function NavItem({
+  icon,
+  label,
+  active = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+}) {
   return (
     <button
-      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      }`}
     >
       {icon}
       {label}
     </button>
-  )
+  );
 }

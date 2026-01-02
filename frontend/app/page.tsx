@@ -1,16 +1,30 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { FileList } from "@/components/file-list"
+"use client";
 
-export default function DashboardPage() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      // Redirect to dashboard if already logged in
+      router.push("/dashboard");
+    } else {
+      // Redirect to login if not authenticated
+      router.push("/login");
+    }
+  }, [router]);
+
   return (
-    <DashboardLayout>
-      <div className="flex flex-col gap-6 p-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">All Files</h1>
-          <p className="text-sm text-muted-foreground">Manage and organize your documents securely in BLOBDRIVE.</p>
-        </div>
-        <FileList />
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="mt-4 text-muted-foreground">Redirecting...</p>
       </div>
-    </DashboardLayout>
-  )
+    </div>
+  );
 }

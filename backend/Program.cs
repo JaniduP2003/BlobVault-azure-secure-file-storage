@@ -80,7 +80,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 //What it is: Registers CORS services in ASP.NET Core
 builder.Services.AddCors(options =>{
     options.AddPolicy("AllowFrontend",policy =>{
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3000")
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
         .AllowAnyMethod() //allow CRUD post get
         .AllowAnyHeader() //allow http heder
         .AllowCredentials(); //allow cockies
@@ -109,7 +109,8 @@ if(app.Environment.IsDevelopment()){
 }
 
 //must need a way to covert HTTP to HTTPS for security
-app.UseHttpsRedirection();
+// Commented out for development to avoid HTTPS redirect issues with CORS
+// app.UseHttpsRedirection();
 //activate the allowforntend policy i made above
 app.UseCors("AllowFrontend");
 //both middleware to auth and authxication
