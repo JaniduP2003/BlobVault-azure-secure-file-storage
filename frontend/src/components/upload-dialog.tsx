@@ -33,28 +33,56 @@ export function UploadDialog() {
     if (!file) return
 
     setIsUploading(true)
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          return 100
-        }
-        return prev + 5
-      })
-    }, 100)
+    setProgress(0)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Get JWT token from localStorage
+      const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("Not authenticated. Please login again.")
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append("file", file)
+
+      // Upload file to backend
+      const response = await fetch("http://localhost:8081/api/documents/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Upload failed")
+      }
+
+      const data = await response.json()
+
+      setProgress(100)
       setIsUploading(false)
-      setProgress(0)
       setFile(null)
       setIsOpen(false)
+
       toast({
         title: "Upload complete",
         description: `${file.name} has been uploaded successfully.`,
       })
-    }, 2500)
+
+      // Trigger a page reload or event to refresh file list
+      window.dispatchEvent(new Event("fileUploaded"))
+    } catch (error: any) {
+      setIsUploading(false)
+      setProgress(0)
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message || "Failed to upload file. Please try again.",
+      })
+    }
   }
 
   return (
