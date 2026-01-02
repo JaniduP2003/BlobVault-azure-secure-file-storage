@@ -349,4 +349,17 @@ Desktop.ini
 # Linux
 *~
 
+# SQLite Database
+*.db
+*.db-shm
+*.db-wal
+backend-data/
+
+# Azurite Storage Emulator
+azurite/
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+__azurite_db_*.json
+
 /tinkaring

@@ -41,14 +41,13 @@ builder.Services.AddEndpointsApiExplorer();
 
 //needs to register the database so others can use it inject it into them 
 // first needs to register it as"App db context"
-//configer Ef core to run in memeory ne need to stor in a database 
+//Configure EF Core to use SQLite for persistent storage
 //🧠 What is AppDbContext? Defines database tables as C# classes. 
-// when the app is restared this data is removed
+// SQLite database persists data even when the app is restarted
 
-builder.Services.AddDbContext<AppDbContext>( options =>
-       options.UseInMemoryDatabase("secureDocumentdb"));
-       //lamdafuctions has a vaeriable named options and after => its called 
-       // and added to use inmemerydatabse
+builder.Services.AddDbContext<AppDbContext>(options =>
+       options.UseSqlite("Data Source=/app/data/securedocuments.db"));
+       // Creates a SQLite database file in the mounted volume that persists between restarts
 
 // read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
 var cfgKey = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"];
@@ -100,6 +99,13 @@ builder.Services.Configure<HostOptions>(options =>
 });
 
 var app = builder.Build();
+
+// Ensure database is created on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.EnsureCreated(); // Creates the database if it doesn't exist
+}
 
 //add the http pipe line 
 //only use swagger in if its dev eneviorment
