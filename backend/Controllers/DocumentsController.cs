@@ -42,13 +42,40 @@ public class DocumentsController: ControllerBase{
         if(file.Length > 50 * 1024 * 1024)
             return BadRequest(new{message ="file size exceeds 50mb limit "});
         
-  // Validate file type
-        var allowedTypes = new[] { "application/pdf", "image/jpeg", "image/png", "image/gif", 
-            "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+        // Validate file type - expanded to support more common file types
+        var allowedTypes = new[] { 
+            // Documents
+            "application/pdf", 
+            "application/msword", 
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel", 
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "text/plain",
+            "text/csv",
+            "application/rtf",
+            // Images
+            "image/jpeg", 
+            "image/png", 
+            "image/gif",
+            "image/webp",
+            "image/svg+xml",
+            "image/bmp",
+            // Archives
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/x-rar-compressed",
+            "application/x-7z-compressed",
+            "application/gzip",
+            // Other
+            "application/json",
+            "application/xml",
+            "text/xml"
+        };
        
         if (!allowedTypes.Contains(file.ContentType))
-            return BadRequest(new { message = "File type not allowed" });
+            return BadRequest(new { message = $"File type '{file.ContentType}' not allowed" });
 
         try{
             var userId = GetUserId();

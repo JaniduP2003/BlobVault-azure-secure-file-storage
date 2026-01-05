@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   FileText,
   FileCode,
@@ -33,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { clearAuth, getToken } from "@/lib/auth";
 
 // Mock data based on API contract
 interface FileItem {
@@ -82,17 +84,22 @@ const MOCK_FILES: FileItem[] = [
 ];
 
 export function FileList() {
+  const router = useRouter();
   const { toast } = useToast();
   const [files, setFiles] = React.useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   // Fetch files from API
   const fetchFiles = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const token = localStorage.getItem("token");
+      const token = getToken();
       if (!token) {
-        throw new Error("Not authenticated");
+        // Don't show error toast if not authenticated - just stop loading
+        setIsLoading(false);
+        return;
       }
 
       const response = await fetch("http://localhost:8081/api/documents", {
@@ -103,17 +110,22 @@ export function FileList() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch files");
+        if (response.status === 401) {
+          // Token expired or invalid - clear auth and redirect
+          clearAuth();
+          router.push("/login");
+          return;
+        } else {
+          setError(`Failed to load files (${response.status})`);
+        }
+        return;
       }
 
       const data = await response.json();
       setFiles(data);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to load files",
-        description: error.message,
-      });
+      console.error("Error fetching files:", error);
+      setError(error.message || "Unable to connect to server");
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +229,21 @@ export function FileList() {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
             <p className="text-muted-foreground">Loading files...</p>
           </div>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="rounded-full bg-destructive/10 p-3 mb-4">
+            <X className="h-8 w-8 text-destructive" />
+          </div>
+          <p className="text-lg font-medium mb-1 text-destructive">Failed to load files</p>
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <Button 
+            onClick={fetchFiles} 
+            variant="outline" 
+            size="sm"
+          >
+            Try Again
+          </Button>
         </div>
       ) : files.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 px-4">

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { FileList } from "@/components/file-list";
+import { isAuthenticated, getUserInfo, clearAuth } from "@/lib/auth";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -12,17 +13,23 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    const storedUsername = localStorage.getItem("username");
+    const checkAuth = async () => {
+      const authenticated = await isAuthenticated();
+      
+      if (!authenticated) {
+        // Token invalid or expired, redirect to login
+        clearAuth();
+        router.push("/login");
+        return;
+      }
 
-    if (!token) {
-      // Redirect to login if no token
-      router.push("/login");
-    } else {
-      setUsername(storedUsername);
+      // Token is valid, load user info
+      const userInfo = getUserInfo();
+      setUsername(userInfo.username);
       setIsLoading(false);
-    }
+    };
+
+    checkAuth();
   }, [router]);
 
   if (isLoading) {

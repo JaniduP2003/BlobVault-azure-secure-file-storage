@@ -13,6 +13,10 @@ RUN dotnet publish ./backend.csproj -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+
+# Create data directory for SQLite database
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 ENV AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
 ENTRYPOINT ["dotnet", "backend.dll"]

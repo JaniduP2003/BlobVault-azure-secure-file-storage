@@ -1,13 +1,16 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Upload, X, File } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { clearAuth, getToken } from "@/lib/auth"
 
 export function UploadDialog() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -37,7 +40,7 @@ export function UploadDialog() {
 
     try {
       // Get JWT token from localStorage
-      const token = localStorage.getItem("token")
+      const token = getToken()
       if (!token) {
         throw new Error("Not authenticated. Please login again.")
       }
@@ -56,8 +59,22 @@ export function UploadDialog() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Upload failed")
+        if (response.status === 401) {
+          // Token expired or invalid - clear auth and redirect
+          clearAuth()
+          router.push("/login")
+          return
+        }
+
+        let errorMessage = `Upload failed with status ${response.status}`
+        try {
+          const error = await response.json()
+          errorMessage = error.message || errorMessage
+        } catch (e) {
+          // If JSON parsing fails, use the status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -106,13 +123,13 @@ export function UploadDialog() {
                 <p className="mb-2 text-sm text-muted-foreground">
                   <span className="font-semibold text-primary">Click to upload</span> or drag and drop
                 </p>
-                <p className="text-xs text-muted-foreground">PDF, images, Word, Excel (Max 50MB)</p>
+                <p className="text-xs text-muted-foreground">PDF, Images, Documents, Archives, Text files (Max 50MB)</p>
               </div>
               <input
                 type="file"
                 className="hidden"
                 onChange={handleFileChange}
-                accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,image/*,.zip,.rar,.7z,.gz,.json,.xml"
               />
             </label>
           ) : (
