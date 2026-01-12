@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadDialog } from "@/components/upload-dialog";
 import { UpgradeStorageDialog } from "@/components/upgrade-storage-dialog";
+import { SearchDialog } from "@/components/search-dialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -42,6 +43,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [username, setUsername] = React.useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const { storageQuota, isLoading: isLoadingStorage } = useStorage();
   const router = useRouter();
   const { toast } = useToast();
@@ -49,6 +51,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const storedUsername = localStorage.getItem("username");
     setUsername(storedUsername);
+  }, []);
+
+  // Keyboard shortcut for search (Cmd+K or Ctrl+K)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const handleLogout = () => {
@@ -86,18 +101,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex max-w-xl flex-1 items-center px-4">
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search files..."
-              className="w-full bg-muted/50 pl-9 md:w-full lg:w-full"
-            />
-            <div className="absolute right-2 top-2 hidden items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-              <span className="text-xs">⌘</span>K
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="relative w-full"
+          >
+            <div className="relative w-full">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                placeholder="Search files..."
+                className="w-full bg-muted/50 pl-9 pr-16 cursor-pointer"
+                readOnly
+              />
+              <div className="absolute right-2 top-2 hidden items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex pointer-events-none">
+                <span className="text-xs">⌘</span>K
+              </div>
             </div>
-          </div>
+          </button>
         </div>
+
+        <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
 
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="hidden sm:flex">
