@@ -548,6 +548,39 @@ public class DocumentsController : ControllerBase
         }
     }
 
+    // Get recent files (last 30 days, ordered by last accessed)
+    [HttpGet("recent")]
+    public async Task<IActionResult> GetRecentFiles()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            
+            var recentFiles = await _context.FileMetadata
+                .Where(f => f.UserId == userId && !f.IsDeleted && f.LastAccessedAt >= thirtyDaysAgo)
+                .OrderByDescending(f => f.LastAccessedAt)
+                .Select(f => new
+                {
+                    f.Id,
+                    f.FileName,
+                    f.FileSize,
+                    f.ContentType,
+                    f.UploadedAt,
+                    f.LastAccessedAt,
+                    f.IsStarred
+                })
+                .ToListAsync();
+
+            return Ok(recentFiles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing recent files");
+            return StatusCode(500, new { message = "Error listing recent files" });
+        }
+    }
+
 
     [HttpGet("share/{id}")]
     //maake a temp link for dowlade 

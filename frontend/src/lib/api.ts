@@ -59,6 +59,9 @@ export const documentsApi = {
   // Star operations
   toggleStar: (id: string) => api.post(`/documents/${id}/star`),
   getStarredFiles: () => api.get('/documents/starred'),
+  
+  // Recent files
+  getRecentFiles: () => api.get('/documents/recent'),
 }
 
 export const authApi = {
