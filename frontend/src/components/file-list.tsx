@@ -356,6 +356,15 @@ export function FileList() {
                         }`}
                       />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => handleDirectDownload(file)}
+                      title="Download file"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <ShareDialog fileId={file.id} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
