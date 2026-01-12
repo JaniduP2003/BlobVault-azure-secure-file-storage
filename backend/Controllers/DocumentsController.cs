@@ -34,6 +34,59 @@ public class DocumentsController: ControllerBase{
     // if the claim is true its says true 
     //?.Value dont crash if null came (safty)
 
+
+    // get the current users current storage usage 
+    private async Task<long> CalculateUserStorageUsage(string userId)
+    {
+        return await _context.FileMetadata
+            .Where(f => f.UserId == userId && ! f.IsDeleted)
+            .SumAsync(f => f.FileSize);
+    }
+
+    // get the current users storage info all of them     
+    [HttpGet("storage-info")]
+    public async Task<IActionResult> GetStorageInfo()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var user = await _context.Users.FindAsync(int.Parse(userId));
+            //Load user from database
+            
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            // Calculate actual storage used
+            var actualStorageUsed = await CalculateUserStorageUsage(userId);
+            // above methode is called here 
+
+            
+            // Update user's storage if it's out of sync
+            if (user.StorageUsedBytes != actualStorageUsed)
+            {
+                user.StorageUsedBytes = actualStorageUsed;
+                await _context.SaveChangesAsync();
+            }
+
+            //gets everything in in mb ,get user % to 
+            return Ok(new
+            {
+                storageQuotaBytes = user.StorageQuotaBytes,
+                storageUsedBytes = user.StorageUsedBytes,
+                remainingBytes = user.RemainingStorageBytes,
+                storageQuotaMB = user.StorageQuotaBytes / (1024.0 * 1024.0),
+                storageUsedMB = user.StorageUsedBytes / (1024.0 * 1024.0),
+                remainingMB = user.RemainingStorageBytes / (1024.0 * 1024.0),
+                usagePercentage = (double)user.StorageUsedBytes / user.StorageQuotaBytes * 100,
+                isQuotaExceeded = user.IsQuotaExceeded
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting storage info");
+            return StatusCode(500, new { message = "Error getting storage info" });
+        }
+    }
     [HttpPost("upload")]
     //IFormFile is a interfece to look inside the formdata body
     public async Task<IActionResult> Upload([FromForm] IFormFile file ){
@@ -79,8 +132,39 @@ public class DocumentsController: ControllerBase{
 
         try{
             var userId = GetUserId();
+
+            // the storage cheack and other 
+            var user = await _context.Users.FindAsync(int.Parse(userId));
+            if (user == null)
+                return Unauthorized(new { message = "User not found" });
+
+            // Calculate current storage usage
+            var currentStorageUsed = await CalculateUserStorageUsage(userId);
+            
+            // if the new file added will exceed the ammont of storage then reject 
+            // fist cheack it 
+            if (currentStorageUsed + file.Length > user.StorageQuotaBytes)
+            {
+                var remainingBytes = user.StorageQuotaBytes - currentStorageUsed;
+                var remainingMB = remainingBytes / (1024.0 * 1024.0);
+                
+                _logger.LogWarning($"User {userId} attempted to upload {file.Length} bytes but only has {remainingBytes} bytes remaining");
+                
+                return StatusCode(507, new // 507 Insufficient Storage
+                {
+                    message = "Storage quota exceeded",
+                    storageQuotaBytes = user. StorageQuotaBytes,
+                    storageUsedBytes = currentStorageUsed,
+                    remainingBytes = remainingBytes,
+                    remainingMB = Math.Round(remainingMB, 2),
+                    fileSize = file.Length,
+                    fileSizeMB = Math.Round(file.Length / (1024.0 * 1024.0), 2)
+                });
+            }
+            //uplode to blob storage 
             var(blobName, url) = await _blobService.UploadAsync(userId ,file );
 
+            //save metadata
             var metadata = new FileMetadata{
                 FileName = file.FileName,
                 BlobName = blobName,
@@ -92,6 +176,10 @@ public class DocumentsController: ControllerBase{
             };
 
             _context.FileMetadata.Add(metadata);
+
+            // update the users new storage ammount after the new files is uploded 
+            user.StorageUsedBytes = currentStorageUsed + file. Length;
+
             await _context.SaveChangesAsync();
 
             return Ok (new{
@@ -100,7 +188,11 @@ public class DocumentsController: ControllerBase{
                 FileSize = metadata.FileSize,
                 ContentType = metadata.ContentType,
                 uploadedAt = metadata.UploadedAt,
-                url
+                url,
+
+                storageUsedBytes = user.StorageUsedBytes,
+                storageQuotaBytes = user.StorageQuotaBytes,
+                remainingBytes = user.RemainingStorageBytes
             });
         } catch(Exception ex){
             _logger.LogError(ex,"Error uploding the file ");
@@ -271,11 +363,27 @@ public class DocumentsController: ControllerBase{
             // Delete from blob storage
             await _blobService.DeleteAsync(file.BlobName);
 
+
+            var user = await _context.Users.FindAsync(int.Parse(userId));
+            if (user != null)
+            {
+                user.StorageUsedBytes -= file.FileSize;
+                if (user.StorageUsedBytes < 0) user.StorageUsedBytes = 0; // Safety check
+            }
+
             // Delete metadata from database
             _context.FileMetadata.Remove(file);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "File permanently deleted" });
+            _logger.LogInformation($"File deleted: {file. BlobName}. User {userId} storage: {user?. StorageUsedBytes}/{user?. StorageQuotaBytes} bytes");
+
+
+            return Ok(new { 
+                message = "File permanently deleted" ,
+                storageUsedBytes = user?.StorageUsedBytes,
+                storageQuotaBytes = user?.StorageQuotaBytes,
+                remainingBytes = user?.RemainingStorageBytes                
+                });
         }
         catch (Exception ex)
         {
