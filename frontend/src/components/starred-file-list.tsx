@@ -167,23 +167,23 @@ export function StarredFileList() {
     });
   };
 
-  const handleDelete = async (id: string, fileName: string) => {
+  const handleDelete = async (id: string, fileName: string, file: FileItem) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      const response = await fetch(`http://localhost:8081/api/documents/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // Move to trash instead of permanent delete
+      const trashedFiles = localStorage.getItem("trashedFiles");
+      const trashed = trashedFiles ? new Map(JSON.parse(trashedFiles)) : new Map();
+      
+      // Add file to trash with deletion timestamp
+      trashed.set(id, {
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        contentType: file.contentType,
+        uploadedAt: file.uploadedAt,
+        lastAccessedAt: file.lastAccessedAt,
+        deletedAt: new Date().toISOString(),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete file");
-      }
+      
+      localStorage.setItem("trashedFiles", JSON.stringify([...trashed.entries()]));
 
       // Remove from starred list
       const starredIds = getStarredFileIds();
@@ -196,16 +196,17 @@ export function StarredFileList() {
       // Dispatch events
       window.dispatchEvent(new Event("starChanged"));
       window.dispatchEvent(new Event("fileUploaded"));
+      window.dispatchEvent(new Event("trashChanged"));
       
       toast({
-        title: "File deleted",
-        description: "The file has been permanently removed.",
+        title: "Moved to trash",
+        description: `${fileName} has been moved to trash.`,
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Delete failed",
-        description: error.message || "Failed to delete file. Please try again.",
+        description: error.message || "Failed to move file to trash. Please try again.",
       });
     }
   };
@@ -330,21 +331,20 @@ export function StarredFileList() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              Are you absolutely sure?
+                              Move to trash?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action cannot be undone. This will permanently
-                              delete <strong>{file.fileName}</strong> from our
-                              servers.
+                              <strong>{file.fileName}</strong> will be moved to trash.
+                              You can restore it later or delete it permanently from the trash.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDelete(file.id, file.fileName)}
+                              onClick={() => handleDelete(file.id, file.fileName, file)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Delete
+                              Move to Trash
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -381,22 +381,20 @@ export function StarredFileList() {
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>
-                                  Are you absolutely sure?
+                                  Move to trash?
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This action cannot be undone. This will
-                                  permanently delete{" "}
-                                  <strong>{file.fileName}</strong> from our
-                                  servers.
+                                  <strong>{file.fileName}</strong> will be moved to trash.
+                                  You can restore it later or delete it permanently from the trash.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDelete(file.id, file.fileName)}
+                                  onClick={() => handleDelete(file.id, file.fileName, file)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Delete
+                                  Move to Trash
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
