@@ -1,0 +1,58 @@
+# Build artifacts
+bin/
+obj/
+out/
+publish/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.cache
+*.user
+*.suo
+*.userprefs
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Database files (will be mounted as volume)
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+*.pid
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# IDE
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README*.md
+*.http
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
