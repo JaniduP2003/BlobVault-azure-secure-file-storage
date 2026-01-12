@@ -19,5 +19,11 @@ public class FileMetadata{
     public DateTime? LastAccessedAt { get; set; }
     public bool IsArchived { get; set; }
     public string? ArchivePath { get; set; }
-
+    
+    // Trash/Soft Delete fields
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    
+    // Starred field
+    public bool IsStarred { get; set; } = false;
 }

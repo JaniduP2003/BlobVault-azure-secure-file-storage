@@ -115,7 +115,8 @@ public class DocumentsController: ControllerBase{
         try{
             var userId = GetUserId();
             var files = await _context.FileMetadata.Where(f=> f.UserId == userId 
-                                                                    && !f.IsArchived)
+                                                                    && !f.IsArchived
+                                                                    && !f.IsDeleted)
                                                     .OrderByDescending(f=> f.UploadedAt)
                                                     .Select(f => new{
                                                         f.Id,
@@ -123,7 +124,8 @@ public class DocumentsController: ControllerBase{
                                                         f.FileSize,
                                                         f.ContentType,
                                                         f.UploadedAt,
-                                                        f.LastAccessedAt
+                                                        f.LastAccessedAt,
+                                                        f.IsStarred
                                                     }).ToListAsync();
             return Ok(files);
         }
@@ -175,25 +177,211 @@ public class DocumentsController: ControllerBase{
         {
             var userId = GetUserId();
             var file = await _context.FileMetadata
-                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId && !f.IsDeleted);
 
             if (file == null)
                 return NotFound(new { message = "File not found" });
 
-            await _blobService.DeleteAsync(file.BlobName); // in the blobservise
-            // it tells the azure to delate the file 
-
-            // you must delate the metadata becose it lives in another place 
-            // not in azure so must delete it 
-            _context.FileMetadata.Remove(file);
+            // Soft delete - move to trash
+            file.IsDeleted = true;
+            file.DeletedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "File deleted successfully" });
+            return Ok(new { message = "File moved to trash" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting file");
-            return StatusCode(500, new { message = "Error deleting file" });
+            _logger.LogError(ex, "Error moving file to trash");
+            return StatusCode(500, new { message = "Error moving file to trash" });
+        }
+    }
+
+    // Get all trashed files
+    [HttpGet("trash")]
+    public async Task<IActionResult> GetTrashedFiles()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var trashedFiles = await _context.FileMetadata
+                .Where(f => f.UserId == userId && f.IsDeleted)
+                .OrderByDescending(f => f.DeletedAt)
+                .Select(f => new
+                {
+                    f.Id,
+                    f.FileName,
+                    f.FileSize,
+                    f.ContentType,
+                    f.UploadedAt,
+                    f.LastAccessedAt,
+                    f.DeletedAt,
+                    f.IsStarred
+                })
+                .ToListAsync();
+
+            return Ok(trashedFiles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing trashed files");
+            return StatusCode(500, new { message = "Error listing trashed files" });
+        }
+    }
+
+    // Restore file from trash
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> RestoreFile(int id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var file = await _context.FileMetadata
+                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId && f.IsDeleted);
+
+            if (file == null)
+                return NotFound(new { message = "File not found in trash" });
+
+            // Restore file
+            file.IsDeleted = false;
+            file.DeletedAt = null;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "File restored successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring file");
+            return StatusCode(500, new { message = "Error restoring file" });
+        }
+    }
+
+    // Permanently delete file from trash
+    [HttpDelete("{id}/permanent")]
+    public async Task<IActionResult> PermanentDelete(int id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var file = await _context.FileMetadata
+                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId && f.IsDeleted);
+
+            if (file == null)
+                return NotFound(new { message = "File not found in trash" });
+
+            // Delete from blob storage
+            await _blobService.DeleteAsync(file.BlobName);
+
+            // Delete metadata from database
+            _context.FileMetadata.Remove(file);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "File permanently deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error permanently deleting file");
+            return StatusCode(500, new { message = "Error permanently deleting file" });
+        }
+    }
+
+    // Empty trash - permanently delete all trashed files
+    [HttpDelete("trash/empty")]
+    public async Task<IActionResult> EmptyTrash()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var trashedFiles = await _context.FileMetadata
+                .Where(f => f.UserId == userId && f.IsDeleted)
+                .ToListAsync();
+
+            if (trashedFiles.Count == 0)
+                return Ok(new { message = "Trash is already empty", deletedCount = 0 });
+
+            // Delete all files from blob storage
+            foreach (var file in trashedFiles)
+            {
+                try
+                {
+                    await _blobService.DeleteAsync(file.BlobName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Failed to delete blob {file.BlobName}");
+                    // Continue with other files even if one fails
+                }
+            }
+
+            // Delete all metadata from database
+            _context.FileMetadata.RemoveRange(trashedFiles);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Trash emptied successfully", deletedCount = trashedFiles.Count });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error emptying trash");
+            return StatusCode(500, new { message = "Error emptying trash" });
+        }
+    }
+
+    // Star/Unstar file
+    [HttpPost("{id}/star")]
+    public async Task<IActionResult> ToggleStar(int id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var file = await _context.FileMetadata
+                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId && !f.IsDeleted);
+
+            if (file == null)
+                return NotFound(new { message = "File not found" });
+
+            // Toggle star status
+            file.IsStarred = !file.IsStarred;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                message = file.IsStarred ? "File starred" : "File unstarred",
+                isStarred = file.IsStarred
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling star status");
+            return StatusCode(500, new { message = "Error updating star status" });
+        }
+    }
+
+    // Get starred files
+    [HttpGet("starred")]
+    public async Task<IActionResult> GetStarredFiles()
+    {
+        try
+        {
+            var userId = GetUserId();
+            var starredFiles = await _context.FileMetadata
+                .Where(f => f.UserId == userId && f.IsStarred && !f.IsDeleted)
+                .OrderByDescending(f => f.UploadedAt)
+                .Select(f => new
+                {
+                    f.Id,
+                    f.FileName,
+                    f.FileSize,
+                    f.ContentType,
+                    f.UploadedAt,
+                    f.LastAccessedAt,
+                    f.IsStarred
+                })
+                .ToListAsync();
+
+            return Ok(starredFiles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing starred files");
+            return StatusCode(500, new { message = "Error listing starred files" });
         }
     }
 
