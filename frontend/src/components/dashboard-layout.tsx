@@ -28,10 +28,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StorageProvider, useStorage } from "@/contexts/storage-context";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <StorageProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </StorageProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [username, setUsername] = React.useState<string | null>(null);
+  const { storageQuota, isLoading: isLoadingStorage } = useStorage();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -151,15 +161,40 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <HardDrive className="h-3 w-3" />
                   <span>Storage</span>
                 </div>
-                <span>4.2 GB of 50 GB</span>
+                <span>
+                  {isLoadingStorage ? (
+                    "Loading..."
+                  ) : storageQuota ? (
+                    `${storageQuota.storageUsedFormatted} of ${storageQuota.storageQuotaFormatted}`
+                  ) : (
+                    "N/A"
+                  )}
+                </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div className="h-full w-[12%] bg-primary" />
+                <div 
+                  className="h-full bg-primary transition-all duration-300" 
+                  style={{ 
+                    width: `${storageQuota?.storageUsedPercentage || 0}%`,
+                    backgroundColor: 
+                      (storageQuota?.storageUsedPercentage || 0) > 90 
+                        ? '#ef4444' 
+                        : (storageQuota?.storageUsedPercentage || 0) > 75 
+                          ? '#f59e0b' 
+                          : undefined
+                  }} 
+                />
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="mt-2 w-full text-xs bg-transparent"
+                onClick={() => {
+                  toast({
+                    title: "Storage Upgrade",
+                    description: "Contact admin to upgrade your storage quota.",
+                  });
+                }}
               >
                 Upgrade Storage
               </Button>

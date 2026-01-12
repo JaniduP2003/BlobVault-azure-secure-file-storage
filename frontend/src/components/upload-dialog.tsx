@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { clearAuth, getToken } from "@/lib/auth"
+import { useStorage } from "@/contexts/storage-context"
 
 export function UploadDialog() {
   const router = useRouter()
@@ -16,6 +17,7 @@ export function UploadDialog() {
   const [progress, setProgress] = React.useState(0)
   const [file, setFile] = React.useState<File | null>(null)
   const { toast } = useToast()
+  const { refreshStorageQuota } = useStorage()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -89,16 +91,29 @@ export function UploadDialog() {
         description: `${file.name} has been uploaded successfully.`,
       })
 
+      // Refresh storage quota after successful upload
+      await refreshStorageQuota()
+
       // Trigger a page reload or event to refresh file list
       window.dispatchEvent(new Event("fileUploaded"))
     } catch (error: any) {
       setIsUploading(false)
       setProgress(0)
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: error.message || "Failed to upload file. Please try again.",
-      })
+      
+      // Check if it's a quota exceeded error
+      if (error.message && error.message.includes("quota")) {
+        toast({
+          variant: "destructive",
+          title: "Storage quota exceeded",
+          description: "You don't have enough storage space. Please delete some files or upgrade your storage.",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: error.message || "Failed to upload file. Please try again.",
+        })
+      }
     }
   }
 

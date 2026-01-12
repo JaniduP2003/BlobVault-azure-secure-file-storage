@@ -27,11 +27,7 @@ public class DocumentsController: ControllerBase{
         _logger = logger ;
     }
 
-    private int GetUserId()
-    {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return int.TryParse(userIdString, out var userId) ? userId : 0;
-    }
+    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
     //ClaimTypes.NameIdentifier its just the name of the autheticated user 
     // the befor claim
     //FindFirst() means “From all the claims inside this token, find the first claim
@@ -40,7 +36,7 @@ public class DocumentsController: ControllerBase{
 
 
     // get the current users current storage usage 
-    private async Task<long> CalculateUserStorageUsage(int userId)
+    private async Task<long> CalculateUserStorageUsage(string userId)
     {
         return await _context.FileMetadata
             .Where(f => f.UserId == userId && ! f.IsDeleted)
@@ -54,7 +50,7 @@ public class DocumentsController: ControllerBase{
         try
         {
             var userId = GetUserId();
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(int.Parse(userId));
             //Load user from database
             
             if (user == null)
@@ -138,7 +134,7 @@ public class DocumentsController: ControllerBase{
             var userId = GetUserId();
 
             // the storage cheack and other 
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(int.Parse(userId));
             if (user == null)
                 return Unauthorized(new { message = "User not found" });
 
@@ -166,7 +162,7 @@ public class DocumentsController: ControllerBase{
                 });
             }
             //uplode to blob storage 
-            var(blobName, url) = await _blobService.UploadAsync(userId.ToString(), file);
+            var(blobName, url) = await _blobService.UploadAsync(userId ,file );
 
             //save metadata
             var metadata = new FileMetadata{
@@ -368,7 +364,7 @@ public class DocumentsController: ControllerBase{
             await _blobService.DeleteAsync(file.BlobName);
 
 
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(int.Parse(userId));
             if (user != null)
             {
                 user.StorageUsedBytes -= file.FileSize;

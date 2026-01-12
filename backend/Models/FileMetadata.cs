@@ -12,7 +12,7 @@ public class FileMetadata{
     public int Id{ get;set; }
     public string FileName {get; set;}
     public string BlobName { get; set;}
-    public string UserId {set; get;}
+    public int UserId {set; get;}  // Changed from string to int to match User.Id
     public long FileSize{set;get;}
     public string ContentType {get;set;} = string.Empty;
     public DateTime UploadedAt { get; set; }
@@ -26,4 +26,7 @@ public class FileMetadata{
     
     // Starred field
     public bool IsStarred { get; set; } = false;
+    
+    // Navigation property
+    public User? User { get; set; }
 }
