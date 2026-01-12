@@ -37,5 +37,9 @@ public class AppDbContext:DbContext{
             modelBuilder.Entity<User>()
                 .HasIndex(u=> u.Email)
                 .IsUnique();
+
+            // Add index for storage queries for better speed 
+            modelBuilder.Entity<FileMetadata>()
+                .HasIndex(f => new { f.UserId, f. IsDeleted });
     }
 }
