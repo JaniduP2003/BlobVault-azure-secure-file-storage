@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Base URL for your backend API
 // Change this to match your backend URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -39,7 +39,7 @@ export const documentsApi = {
       responseType: 'blob',
     }),
   
-  // Delete file
+  // Delete file (soft delete - moves to trash)
   deleteFile: (id: string) => api.delete(`/api/documents/${id}`),
   
   // Generate share link
@@ -49,6 +49,16 @@ export const documentsApi = {
   // Access shared file
   accessSharedFile: (token: string) => 
     api.get(`/api/documents/shared/${token}`),
+  
+  // Trash operations
+  getTrashedFiles: () => api.get('/api/documents/trash'),
+  restoreFile: (id: string) => api.post(`/api/documents/${id}/restore`),
+  permanentDelete: (id: string) => api.delete(`/api/documents/${id}/permanent`),
+  emptyTrash: () => api.delete('/api/documents/trash/empty'),
+  
+  // Star operations
+  toggleStar: (id: string) => api.post(`/api/documents/${id}/star`),
+  getStarredFiles: () => api.get('/api/documents/starred'),
 }
 
 export const authApi = {

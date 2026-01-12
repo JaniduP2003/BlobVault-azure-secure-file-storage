@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { clearAuth, getToken } from "@/lib/auth";
+import { documentsApi } from "@/lib/api";
 
 // File interface matching API contract
 interface FileItem {
@@ -56,47 +57,30 @@ export function TrashFileList() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Get trashed file IDs from localStorage
-  const getTrashedFiles = (): Map<string, { fileName: string; deletedAt: string; fileSize: number; contentType: string; uploadedAt: string; lastAccessedAt: string }> => {
-    const trashed = localStorage.getItem("trashedFiles");
-    return trashed ? new Map(JSON.parse(trashed)) : new Map();
-  };
-
-  // Fetch files from localStorage (trashed files)
+  // Fetch trashed files from backend API
   const fetchFiles = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const trashedFiles = getTrashedFiles();
-      
-      if (trashedFiles.size === 0) {
-        setFiles([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Convert Map to array of FileItems
-      const fileArray: FileItem[] = Array.from(trashedFiles.entries()).map(([id, data]) => ({
-        id,
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        contentType: data.contentType,
-        uploadedAt: data.uploadedAt,
-        lastAccessedAt: data.lastAccessedAt,
-        deletedAt: data.deletedAt,
-      }));
+      const response = await documentsApi.getTrashedFiles();
+      const data = response.data;
 
       // Sort by deletion date (most recent first)
-      fileArray.sort((a, b) => {
+      const sortedData = [...data].sort((a: FileItem, b: FileItem) => {
         const dateA = new Date(a.deletedAt || 0).getTime();
         const dateB = new Date(b.deletedAt || 0).getTime();
         return dateB - dateA;
       });
 
-      setFiles(fileArray);
+      setFiles(sortedData);
     } catch (error: any) {
       console.error("Error fetching trashed files:", error);
-      setError(error.message || "Unable to load trashed files");
+      if (error.response?.status === 401) {
+        clearAuth();
+        router.push("/login");
+        return;
+      }
+      setError(error.response?.data?.message || "Unable to load trashed files");
     } finally {
       setIsLoading(false);
     }
@@ -138,73 +122,39 @@ export function TrashFileList() {
     return <FileIcon className="h-5 w-5 text-muted-foreground" />;
   };
 
-  const handleRestore = (id: string, fileName: string) => {
-    const trashedFiles = getTrashedFiles();
-    
-    if (!trashedFiles.has(id)) {
+  const handleRestore = async (id: string, fileName: string) => {
+    try {
+      await documentsApi.restoreFile(id);
+      
+      // Remove from local state
+      setFiles((prev) => prev.filter((f) => f.id !== id));
+      
+      // Dispatch events
+      window.dispatchEvent(new Event("trashChanged"));
+      window.dispatchEvent(new Event("fileUploaded")); // Refresh main file list
+      
+      toast({
+        title: "File restored",
+        description: `${fileName} has been restored to your files.`,
+      });
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Restore failed",
-        description: "File not found in trash.",
+        description: error.response?.data?.message || "Failed to restore file. Please try again.",
       });
-      return;
     }
-
-    // Remove from trash
-    trashedFiles.delete(id);
-    localStorage.setItem("trashedFiles", JSON.stringify([...trashedFiles.entries()]));
-    
-    // Remove from local state
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-    
-    // Dispatch events
-    window.dispatchEvent(new Event("trashChanged"));
-    window.dispatchEvent(new Event("fileUploaded")); // Refresh main file list
-    window.dispatchEvent(new Event("starChanged")); // Refresh starred list if applicable
-    
-    toast({
-      title: "File restored",
-      description: `${fileName} has been restored to your files.`,
-    });
   };
 
   const handlePermanentDelete = async (id: string, fileName: string) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      const response = await fetch(`http://localhost:8081/api/documents/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete file permanently");
-      }
-
-      // Remove from trash
-      const trashedFiles = getTrashedFiles();
-      trashedFiles.delete(id);
-      localStorage.setItem("trashedFiles", JSON.stringify([...trashedFiles.entries()]));
-
-      // Remove from starred if it was starred
-      const starredIds = localStorage.getItem("starredFiles");
-      if (starredIds) {
-        const starred = new Set(JSON.parse(starredIds));
-        starred.delete(id);
-        localStorage.setItem("starredFiles", JSON.stringify([...starred]));
-      }
+      await documentsApi.permanentDelete(id);
 
       // Remove from local state
       setFiles((prev) => prev.filter((f) => f.id !== id));
       
       // Dispatch events
       window.dispatchEvent(new Event("trashChanged"));
-      window.dispatchEvent(new Event("starChanged"));
       
       toast({
         title: "File permanently deleted",
@@ -214,56 +164,32 @@ export function TrashFileList() {
       toast({
         variant: "destructive",
         title: "Delete failed",
-        description: error.message || "Failed to delete file permanently. Please try again.",
+        description: error.response?.data?.message || "Failed to delete file permanently. Please try again.",
       });
     }
   };
 
   const handleEmptyTrash = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      // Delete all files from server
-      const deletePromises = files.map((file) =>
-        fetch(`http://localhost:8081/api/documents/${file.id}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-      );
-
-      await Promise.all(deletePromises);
-
-      // Clear trash and starred references
-      localStorage.setItem("trashedFiles", JSON.stringify([]));
+      const fileCount = files.length;
       
-      const starredIds = localStorage.getItem("starredFiles");
-      if (starredIds) {
-        const starred = new Set(JSON.parse(starredIds));
-        files.forEach((file) => starred.delete(file.id));
-        localStorage.setItem("starredFiles", JSON.stringify([...starred]));
-      }
+      await documentsApi.emptyTrash();
 
       // Clear local state
       setFiles([]);
       
       // Dispatch events
       window.dispatchEvent(new Event("trashChanged"));
-      window.dispatchEvent(new Event("starChanged"));
       
       toast({
         title: "Trash emptied",
-        description: `${deletePromises.length} file(s) permanently deleted.`,
+        description: `${fileCount} file(s) permanently deleted.`,
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Empty trash failed",
-        description: error.message || "Failed to empty trash. Please try again.",
+        description: error.response?.data?.message || "Failed to empty trash. Please try again.",
       });
     }
   };

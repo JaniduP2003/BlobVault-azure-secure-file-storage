@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { clearAuth, getToken } from "@/lib/auth";
+import { documentsApi } from "@/lib/api";
 
 // Mock data based on API contract
 interface FileItem {
@@ -46,6 +47,7 @@ interface FileItem {
   contentType: string;
   uploadedAt: string;
   lastAccessedAt: string;
+  isStarred?: boolean;
   url?: string;
 }
 
@@ -91,52 +93,30 @@ export function FileList() {
   const [files, setFiles] = React.useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [starredFiles, setStarredFiles] = React.useState<Set<string>>(new Set());
 
-  // Get starred file IDs from localStorage
-  const loadStarredFiles = () => {
-    const starred = localStorage.getItem("starredFiles");
-    return starred ? new Set<string>(JSON.parse(starred)) : new Set<string>();
-  };
-
-  // Initialize starred files
-  React.useEffect(() => {
-    setStarredFiles(loadStarredFiles());
-    
-    // Listen for star changes from other components
-    const handleStarChanged = () => {
-      setStarredFiles(loadStarredFiles());
-    };
-    
-    window.addEventListener("starChanged", handleStarChanged);
-    return () => {
-      window.removeEventListener("starChanged", handleStarChanged);
-    };
-  }, []);
-
-  // Toggle star status
-  const toggleStar = (id: string, fileName: string) => {
-    const starred = loadStarredFiles();
-    
-    if (starred.has(id)) {
-      starred.delete(id);
+  // Toggle star status using backend API
+  const toggleStar = async (id: string, fileName: string, currentStarred: boolean) => {
+    try {
+      const response = await documentsApi.toggleStar(id);
+      
+      // Update local state
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...f, isStarred: !currentStarred } : f
+        )
+      );
+      
       toast({
-        title: "Removed from starred",
-        description: `${fileName} has been unstarred.`,
+        title: response.data.isStarred ? "Added to starred" : "Removed from starred",
+        description: `${fileName} ${response.data.isStarred ? 'is now starred' : 'has been unstarred'}.`,
       });
-    } else {
-      starred.add(id);
+    } catch (error: any) {
       toast({
-        title: "Added to starred",
-        description: `${fileName} is now starred.`,
+        variant: "destructive",
+        title: "Star failed",
+        description: error.response?.data?.message || "Failed to update star status. Please try again.",
       });
     }
-    
-    localStorage.setItem("starredFiles", JSON.stringify([...starred]));
-    setStarredFiles(new Set(starred));
-    
-    // Dispatch event for other components
-    window.dispatchEvent(new Event("starChanged"));
   };
 
   // Fetch files from API
@@ -215,23 +195,10 @@ export function FileList() {
     return <FileIcon className="h-5 w-5 text-muted-foreground" />;
   };
 
-  const handleDelete = async (id: string, fileName: string, file: FileItem) => {
+  const handleDelete = async (id: string, fileName: string) => {
     try {
-      // Move to trash instead of permanent delete
-      const trashedFiles = localStorage.getItem("trashedFiles");
-      const trashed = trashedFiles ? new Map(JSON.parse(trashedFiles)) : new Map();
-      
-      // Add file to trash with deletion timestamp
-      trashed.set(id, {
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        contentType: file.contentType,
-        uploadedAt: file.uploadedAt,
-        lastAccessedAt: file.lastAccessedAt,
-        deletedAt: new Date().toISOString(),
-      });
-      
-      localStorage.setItem("trashedFiles", JSON.stringify([...trashed.entries()]));
+      // Use backend API to move to trash (soft delete)
+      await documentsApi.deleteFile(id);
 
       // Remove from local state
       setFiles((prev) => prev.filter((f) => f.id !== id));
@@ -247,7 +214,7 @@ export function FileList() {
       toast({
         variant: "destructive",
         title: "Delete failed",
-        description: error.message || "Failed to move file to trash. Please try again.",
+        description: error.response?.data?.message || "Failed to move file to trash. Please try again.",
       });
     }
   };
@@ -349,16 +316,16 @@ export function FileList() {
                       variant="ghost"
                       size="icon"
                       className={`h-8 w-8 ${
-                        starredFiles.has(file.id)
+                        file.isStarred
                           ? "text-yellow-500 hover:text-yellow-600"
                           : "text-muted-foreground hover:text-yellow-500"
                       }`}
-                      onClick={() => toggleStar(file.id, file.fileName)}
-                      title={starredFiles.has(file.id) ? "Remove from starred" : "Add to starred"}
+                      onClick={() => toggleStar(file.id, file.fileName, file.isStarred || false)}
+                      title={file.isStarred ? "Remove from starred" : "Add to starred"}
                     >
                       <Star
                         className={`h-4 w-4 ${
-                          starredFiles.has(file.id) ? "fill-yellow-500" : ""
+                          file.isStarred ? "fill-yellow-500" : ""
                         }`}
                       />
                     </Button>
@@ -386,7 +353,7 @@ export function FileList() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDelete(file.id, file.fileName, file)}
+                            onClick={() => handleDelete(file.id, file.fileName)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             Move to Trash
@@ -409,9 +376,9 @@ export function FileList() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => toggleStar(file.id, file.fileName)}
+                          onClick={() => toggleStar(file.id, file.fileName, file.isStarred || false)}
                         >
-                          {starredFiles.has(file.id) ? (
+                          {file.isStarred ? (
                             <>
                               <StarOff className="h-4 w-4" /> Unstar
                             </>
@@ -444,7 +411,7 @@ export function FileList() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDelete(file.id, file.fileName, file)}
+                                onClick={() => handleDelete(file.id, file.fileName)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Move to Trash

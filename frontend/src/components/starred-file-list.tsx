@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { clearAuth, getToken } from "@/lib/auth";
+import { documentsApi } from "@/lib/api";
 
 // File interface matching API contract
 interface FileItem {
@@ -47,6 +48,7 @@ interface FileItem {
   uploadedAt: string;
   lastAccessedAt: string;
   url?: string;
+  isStarred: boolean;
 }
 
 export function StarredFileList() {
@@ -56,13 +58,7 @@ export function StarredFileList() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Get starred file IDs from localStorage
-  const getStarredFileIds = (): Set<string> => {
-    const starred = localStorage.getItem("starredFiles");
-    return starred ? new Set(JSON.parse(starred)) : new Set();
-  };
-
-  // Fetch files from API and filter starred ones
+  // Fetch starred files from API
   const fetchFiles = async () => {
     setIsLoading(true);
     setError(null);
@@ -73,36 +69,17 @@ export function StarredFileList() {
         return;
       }
 
-      const response = await fetch("http://localhost:8081/api/documents", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearAuth();
-          router.push("/login");
-          return;
-        } else {
-          setError(`Failed to load files (${response.status})`);
-        }
-        return;
-      }
-
-      const data = await response.json();
+      const data = await documentsApi.getStarredFiles();
       
-      // Filter only starred files
-      const starredIds = getStarredFileIds();
-      const starredFiles = data.filter((file: FileItem) => 
-        starredIds.has(file.id)
-      );
-      
-      setFiles(starredFiles);
+      setFiles(data.data);
     } catch (error: any) {
       console.error("Error fetching files:", error);
-      setError(error.message || "Unable to connect to server");
+      if (error.response?.status === 401) {
+        clearAuth();
+        router.push("/login");
+      } else {
+        setError(error.response?.data?.message || "Unable to connect to server");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -150,45 +127,32 @@ export function StarredFileList() {
     return <FileIcon className="h-5 w-5 text-muted-foreground" />;
   };
 
-  const handleUnstar = (id: string, fileName: string) => {
-    const starredIds = getStarredFileIds();
-    starredIds.delete(id);
-    localStorage.setItem("starredFiles", JSON.stringify([...starredIds]));
-    
-    // Remove from local state
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-    
-    // Dispatch event for other components
-    window.dispatchEvent(new Event("starChanged"));
-    
-    toast({
-      title: "Removed from starred",
-      description: `${fileName} has been unstarred.`,
-    });
+  const handleUnstar = async (id: string, fileName: string) => {
+    try {
+      await documentsApi.toggleStar(id);
+      
+      // Remove from local state
+      setFiles((prev) => prev.filter((f) => f.id !== id));
+      
+      // Dispatch event for other components
+      window.dispatchEvent(new Event("starChanged"));
+      
+      toast({
+        title: "Removed from starred",
+        description: `${fileName} has been unstarred.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Unstar failed",
+        description: error.response?.data?.message || "Failed to unstar file. Please try again.",
+      });
+    }
   };
 
-  const handleDelete = async (id: string, fileName: string, file: FileItem) => {
+  const handleDelete = async (id: string, fileName: string) => {
     try {
-      // Move to trash instead of permanent delete
-      const trashedFiles = localStorage.getItem("trashedFiles");
-      const trashed = trashedFiles ? new Map(JSON.parse(trashedFiles)) : new Map();
-      
-      // Add file to trash with deletion timestamp
-      trashed.set(id, {
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        contentType: file.contentType,
-        uploadedAt: file.uploadedAt,
-        lastAccessedAt: file.lastAccessedAt,
-        deletedAt: new Date().toISOString(),
-      });
-      
-      localStorage.setItem("trashedFiles", JSON.stringify([...trashed.entries()]));
-
-      // Remove from starred list
-      const starredIds = getStarredFileIds();
-      starredIds.delete(id);
-      localStorage.setItem("starredFiles", JSON.stringify([...starredIds]));
+      await documentsApi.deleteFile(id);
 
       // Remove from local state
       setFiles((prev) => prev.filter((f) => f.id !== id));
@@ -341,7 +305,7 @@ export function StarredFileList() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDelete(file.id, file.fileName, file)}
+                              onClick={() => handleDelete(file.id, file.fileName)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Move to Trash
@@ -391,7 +355,7 @@ export function StarredFileList() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDelete(file.id, file.fileName, file)}
+                                  onClick={() => handleDelete(file.id, file.fileName)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Move to Trash
