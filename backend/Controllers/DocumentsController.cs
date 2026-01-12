@@ -7,6 +7,7 @@ using backend.Data;
 using backend.Models;
 using backend.Services;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace backend.Controllers;
 
@@ -92,12 +93,14 @@ public class DocumentsController: ControllerBase{
         }
     }
     [HttpPost("upload")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100MB limit
+    [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)] // 100MB limit for multipart forms
     //IFormFile is a interfece to look inside the formdata body
     public async Task<IActionResult> Upload([FromForm] IFormFile file ){
         if( file == null || file.Length == 0)
             return BadRequest(new{message = "No file provided "});
-        if(file.Length > 50 * 1024 * 1024)
-            return BadRequest(new{message ="file size exceeds 50mb limit "});
+        if(file.Length > 100 * 1024 * 1024)
+            return BadRequest(new{message ="file size exceeds 100mb limit "});
         
         // Validate file type - expanded to support more common file types
         var allowedTypes = new[] { 

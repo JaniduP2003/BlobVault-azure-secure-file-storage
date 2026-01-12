@@ -5,8 +5,30 @@ using Microsoft.OpenApi.Models;
 using backend.Data;
 using backend.Services;
 using System.Text;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Kestrel to allow large file uploads (100MB max)
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+});
+
+// Configure IIS to allow large file uploads (if hosting on IIS)
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+});
+
+// Configure form options to allow large multipart form data
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100MB
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+});
 
 //add the services here
 builder.Services.AddControllers();
@@ -82,7 +104,9 @@ builder.Services.AddCors(options =>{
         policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
         .AllowAnyMethod() //allow CRUD post get
         .AllowAnyHeader() //allow http heder
-        .AllowCredentials(); //allow cockies
+        .AllowCredentials() //allow cockies
+        .WithExposedHeaders("Content-Disposition") // Expose additional headers if needed
+        .SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests for 10 minutes
     });
 
     });
