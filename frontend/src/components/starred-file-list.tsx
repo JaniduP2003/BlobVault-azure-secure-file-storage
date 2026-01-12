@@ -13,6 +13,7 @@ import {
   X,
   Star,
   StarOff,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -196,6 +197,32 @@ export function StarredFileList() {
     }
   };
 
+  const handleDirectDownload = (file: FileItem) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Not authenticated",
+        description: "Please login to access files.",
+      });
+      return;
+    }
+
+    // Create a temporary anchor element to trigger download
+    const downloadUrl = `http://localhost:8081/api/documents/download/${file.id}?token=${token}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = file.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Download started",
+      description: `Downloading ${file.fileName}...`,
+    });
+  };
+
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
       {isLoading ? (
@@ -325,6 +352,12 @@ export function StarredFileList() {
                             onClick={() => handleFileClick(file)}
                           >
                             <ExternalLink className="h-4 w-4" /> Preview
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleDirectDownload(file)}
+                          >
+                            <Download className="h-4 w-4" /> Download
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="gap-2"
