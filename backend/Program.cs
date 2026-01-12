@@ -91,6 +91,8 @@ builder.Services.AddCors(options =>{
 builder.Services.AddSingleton<IBlobService, BlobService>();
 // add a cleen up 
 builder.Services.AddHostedService<CleanupService>();
+// add storage quota service
+builder.Services.AddScoped<IStorageQuotaService, StorageQuotaService>();
 
 // If a background service throws, don't stop the whole host during development.
 builder.Services.Configure<HostOptions>(options =>

@@ -8,14 +8,14 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 
-    //storage quota fileds
-    public long StorageQuotaBytes {get;set;} = 1073741824; 
-    public long StorageUsedBytes{get;set;} = 0;
+    // Storage quota fields
+    public long StorageQuotaBytes { get; set; } = 5L * 1024 * 1024 * 1024; // Default 5GB
+    public long StorageUsedBytes { get; set; } = 0;
 
+    // Computed properties
     public bool IsQuotaExceeded => StorageUsedBytes >= StorageQuotaBytes;
-    //if its Is the storage usage greater than or equal to the allowed quota?”
-    // then true if not fualse 
+    public long RemainingStorageBytes => StorageQuotaBytes - StorageUsedBytes;
 
-    public book RemainingStorageBytes => StorageQuotaBytes - StorageUsedBytes;
-    
+    // Navigation property for related files
+    public ICollection<FileMetadata> Files { get; set; } = new List<FileMetadata>();
 }
