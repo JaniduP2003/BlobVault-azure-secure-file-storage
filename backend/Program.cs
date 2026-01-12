@@ -69,7 +69,7 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
        options.UseSqlite("Data Source=/app/data/securedocuments.db"));
-       // Creates a SQLite database file in the mounted volume that persists between restarts
+// Creates a SQLite database file in the mounted volume that persists between restarts
 
 // read the key for the appsetting (try standard 'Jwt:Key' first, then legacy 'jwt:jwtKey')
 var cfgKey = builder.Configuration["Jwt:Key"] ?? builder.Configuration["jwt:jwtKey"];
@@ -84,23 +84,43 @@ var jwtKeyBytes = System.Security.Cryptography.SHA512.HashData(System.Text.Encod
 //add the jwt  barrer token schema
 //jwt has a validation chackes i need to add this 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer( options =>{
-            options.TokenValidationParameters = new TokenValidationParameters{
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
                 ValidateIssuer = true,
-                ValidateAudience =true,
-                ValidateLifetime =true,
-                ValidateIssuerSigningKey =true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
                 ValidIssuer = builder.Configuration["Jwt:Issuer"],
                 ValidAudience = builder.Configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes)
+            };
+
+            // Allow token from query string for file downloads (since browser window.open can't set headers)
+            options.Events = new JwtBearerEvents
+            //JWT middleware lets you intercept parts of the authentication process.
+            {
+                OnMessageReceived = context =>
+                {
+                    // Check if token is in query string (for download/preview links)
+                    if (context.Request.Query.ContainsKey("token"))
+                    {
+                        context.Token = context.Request.Query["token"];
+                        //Tell JWT middleware “this is the token”
+                    }
+                    return Task.CompletedTask;
+                }
             };
 
         });
 
 //add cores so forntend can talk
 //What it is: Registers CORS services in ASP.NET Core
-builder.Services.AddCors(options =>{
-    options.AddPolicy("AllowFrontend",policy =>{
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
         policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
         .AllowAnyMethod() //allow CRUD post get
         .AllowAnyHeader() //allow http heder
@@ -109,7 +129,7 @@ builder.Services.AddCors(options =>{
         .SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests for 10 minutes
     });
 
-    });
+});
 
 //register the services here using a interface + implemenetation 
 builder.Services.AddSingleton<IBlobService, BlobService>();
@@ -135,7 +155,8 @@ using (var scope = app.Services.CreateScope())
 
 //add the http pipe line 
 //only use swagger in if its dev eneviorment
-if(app.Environment.IsDevelopment()){
+if (app.Environment.IsDevelopment())
+{
     // app.UseSwagger();
     // app.UseSwaggerUI();
 }

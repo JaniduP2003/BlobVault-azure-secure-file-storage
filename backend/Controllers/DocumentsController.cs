@@ -16,16 +16,18 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 
-public class DocumentsController: ControllerBase{
+public class DocumentsController : ControllerBase
+{
 
     private readonly IBlobService _blobService;
     private readonly AppDbContext _context;
-    private readonly ILogger<DocumentsController> _logger ;
+    private readonly ILogger<DocumentsController> _logger;
 
-    public DocumentsController(IBlobService blobService , AppDbContext context ,ILogger<DocumentsController> logger ){
+    public DocumentsController(IBlobService blobService, AppDbContext context, ILogger<DocumentsController> logger)
+    {
         _blobService = blobService;
         _context = context;
-        _logger = logger ;
+        _logger = logger;
     }
 
     private int GetUserId()
@@ -44,7 +46,7 @@ public class DocumentsController: ControllerBase{
     private async Task<long> CalculateUserStorageUsage(int userId)
     {
         return await _context.FileMetadata
-            .Where(f => f.UserId == userId && ! f.IsDeleted)
+            .Where(f => f.UserId == userId && !f.IsDeleted)
             .SumAsync(f => f.FileSize);
     }
 
@@ -57,7 +59,7 @@ public class DocumentsController: ControllerBase{
             var userId = GetUserId();
             var user = await _context.Users.FindAsync(userId);
             //Load user from database
-            
+
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
@@ -65,7 +67,7 @@ public class DocumentsController: ControllerBase{
             var actualStorageUsed = await CalculateUserStorageUsage(userId);
             // above methode is called here 
 
-            
+
             // Update user's storage if it's out of sync
             if (user.StorageUsedBytes != actualStorageUsed)
             {
@@ -96,19 +98,20 @@ public class DocumentsController: ControllerBase{
     [RequestSizeLimit(100 * 1024 * 1024)] // 100MB limit
     [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)] // 100MB limit for multipart forms
     //IFormFile is a interfece to look inside the formdata body
-    public async Task<IActionResult> Upload([FromForm] IFormFile file ){
-        if( file == null || file.Length == 0)
-            return BadRequest(new{message = "No file provided "});
-        if(file.Length > 100 * 1024 * 1024)
-            return BadRequest(new{message ="file size exceeds 100mb limit "});
-        
+    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file provided " });
+        if (file.Length > 100 * 1024 * 1024)
+            return BadRequest(new { message = "file size exceeds 100mb limit " });
+
         // Validate file type - expanded to support more common file types
         var allowedTypes = new[] { 
             // Documents
-            "application/pdf", 
-            "application/msword", 
+            "application/pdf",
+            "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-excel", 
+            "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.ms-powerpoint",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -116,8 +119,8 @@ public class DocumentsController: ControllerBase{
             "text/csv",
             "application/rtf",
             // Images
-            "image/jpeg", 
-            "image/png", 
+            "image/jpeg",
+            "image/png",
             "image/gif",
             "image/webp",
             "image/svg+xml",
@@ -133,11 +136,12 @@ public class DocumentsController: ControllerBase{
             "application/xml",
             "text/xml"
         };
-       
+
         if (!allowedTypes.Contains(file.ContentType))
             return BadRequest(new { message = $"File type '{file.ContentType}' not allowed" });
 
-        try{
+        try
+        {
             var userId = GetUserId();
 
             // the storage cheack and other 
@@ -147,20 +151,20 @@ public class DocumentsController: ControllerBase{
 
             // Calculate current storage usage
             var currentStorageUsed = await CalculateUserStorageUsage(userId);
-            
+
             // if the new file added will exceed the ammont of storage then reject 
             // fist cheack it 
             if (currentStorageUsed + file.Length > user.StorageQuotaBytes)
             {
                 var remainingBytes = user.StorageQuotaBytes - currentStorageUsed;
                 var remainingMB = remainingBytes / (1024.0 * 1024.0);
-                
+
                 _logger.LogWarning($"User {userId} attempted to upload {file.Length} bytes but only has {remainingBytes} bytes remaining");
-                
+
                 return StatusCode(507, new // 507 Insufficient Storage
                 {
                     message = "Storage quota exceeded",
-                    storageQuotaBytes = user. StorageQuotaBytes,
+                    storageQuotaBytes = user.StorageQuotaBytes,
                     storageUsedBytes = currentStorageUsed,
                     remainingBytes = remainingBytes,
                     remainingMB = Math.Round(remainingMB, 2),
@@ -169,13 +173,14 @@ public class DocumentsController: ControllerBase{
                 });
             }
             //uplode to blob storage 
-            var(blobName, url) = await _blobService.UploadAsync(userId.ToString(), file);
+            var (blobName, url) = await _blobService.UploadAsync(userId.ToString(), file);
 
             //save metadata
-            var metadata = new FileMetadata{
+            var metadata = new FileMetadata
+            {
                 FileName = file.FileName,
                 BlobName = blobName,
-                UserId = userId, 
+                UserId = userId,
                 FileSize = file.Length,
                 ContentType = file.ContentType,
                 UploadedAt = DateTime.UtcNow
@@ -185,13 +190,14 @@ public class DocumentsController: ControllerBase{
             _context.FileMetadata.Add(metadata);
 
             // update the users new storage ammount after the new files is uploded 
-            user.StorageUsedBytes = currentStorageUsed + file. Length;
+            user.StorageUsedBytes = currentStorageUsed + file.Length;
 
             await _context.SaveChangesAsync();
 
-            return Ok (new{
+            return Ok(new
+            {
                 id = metadata.Id,
-                fileName =metadata.FileName,
+                fileName = metadata.FileName,
                 FileSize = metadata.FileSize,
                 ContentType = metadata.ContentType,
                 uploadedAt = metadata.UploadedAt,
@@ -201,23 +207,28 @@ public class DocumentsController: ControllerBase{
                 storageQuotaBytes = user.StorageQuotaBytes,
                 remainingBytes = user.RemainingStorageBytes
             });
-        } catch(Exception ex){
-            _logger.LogError(ex,"Error uploding the file ");
-            return StatusCode(500,new{ message = "Error uploding the file "});
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploding the file ");
+            return StatusCode(500, new { message = "Error uploding the file " });
 
         }
-    
-     }
 
-     [HttpGet]
-     public async Task<IActionResult> GetFiles(){
-        try{
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetFiles()
+    {
+        try
+        {
             var userId = GetUserId();
-            var files = await _context.FileMetadata.Where(f=> f.UserId == userId 
+            var files = await _context.FileMetadata.Where(f => f.UserId == userId
                                                                     && !f.IsArchived
                                                                     && !f.IsDeleted)
-                                                    .OrderByDescending(f=> f.UploadedAt)
-                                                    .Select(f => new{
+                                                    .OrderByDescending(f => f.UploadedAt)
+                                                    .Select(f => new
+                                                    {
                                                         f.Id,
                                                         f.FileName,
                                                         f.FileSize,
@@ -228,14 +239,15 @@ public class DocumentsController: ControllerBase{
                                                     }).ToListAsync();
             return Ok(files);
         }
-        catch(Exception ex){
-            _logger.LogError(ex,"Error listing the files");
-            return StatusCode(500,new {message = "Error Listing Files"});
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing the files");
+            return StatusCode(500, new { message = "Error Listing Files" });
         }
-     }
+    }
 
 
-      [HttpGet("download/{id}")]
+    [HttpGet("download/{id}")]
     public async Task<IActionResult> Download(int id)
     {
         try
@@ -248,7 +260,7 @@ public class DocumentsController: ControllerBase{
             //“From the database, find the first file whose Id matches 
             // id and belongs to the current user.
 
-            if(file == null ) return NotFound(new {message = "File not found "});
+            if (file == null) return NotFound(new { message = "File not found " });
 
             var stream = await _blobService.DownloadAsync(file.BlobName);
 
@@ -266,6 +278,40 @@ public class DocumentsController: ControllerBase{
         {
             _logger.LogError(ex, "Error downloading file");
             return StatusCode(500, new { message = "Error downloading file" });
+        }
+    }
+
+    [HttpGet("preview/{id}")]
+    public async Task<IActionResult> Preview(int id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var file = await _context.FileMetadata.FirstOrDefaultAsync(
+                                                    f => f.Id == id &&
+                                                    f.UserId == userId
+                                                    );
+
+            if (file == null) return NotFound(new { message = "File not found " });
+
+            var stream = await _blobService.DownloadAsync(file.BlobName);
+
+            // Update last accessed time
+            file.LastAccessedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            // Return file with inline disposition for preview in browser
+            Response.Headers.Append("Content-Disposition", $"inline; filename=\"{file.FileName}\"");
+            return File(stream, file.ContentType);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { message = "File not found" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error previewing file");
+            return StatusCode(500, new { message = "Error previewing file" });
         }
     }
 
@@ -382,15 +428,16 @@ public class DocumentsController: ControllerBase{
             _context.FileMetadata.Remove(file);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation($"File deleted: {file. BlobName}. User {userId} storage: {user?. StorageUsedBytes}/{user?. StorageQuotaBytes} bytes");
+            _logger.LogInformation($"File deleted: {file.BlobName}. User {userId} storage: {user?.StorageUsedBytes}/{user?.StorageQuotaBytes} bytes");
 
 
-            return Ok(new { 
-                message = "File permanently deleted" ,
+            return Ok(new
+            {
+                message = "File permanently deleted",
                 storageUsedBytes = user?.StorageUsedBytes,
                 storageQuotaBytes = user?.StorageQuotaBytes,
-                remainingBytes = user?.RemainingStorageBytes                
-                });
+                remainingBytes = user?.RemainingStorageBytes
+            });
         }
         catch (Exception ex)
         {
@@ -457,7 +504,8 @@ public class DocumentsController: ControllerBase{
             file.IsStarred = !file.IsStarred;
             await _context.SaveChangesAsync();
 
-            return Ok(new { 
+            return Ok(new
+            {
                 message = file.IsStarred ? "File starred" : "File unstarred",
                 isStarred = file.IsStarred
             });
@@ -511,7 +559,7 @@ public class DocumentsController: ControllerBase{
         {
             if (expiryMinutes < 1 || expiryMinutes > 1440) // Max 24 hours
                 return BadRequest(new { message = "Expiry must be between 1 and 1440 minutes" });
-                // better security cant get a link forever 
+            // better security cant get a link forever 
 
             var userId = GetUserId();
             var file = await _context.FileMetadata
