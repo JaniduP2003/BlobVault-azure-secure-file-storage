@@ -34,12 +34,20 @@ public class AuthController:ControllerBase{
         return BadRequest(new {message = "Email already Exists "});
         // u is NOT a variable stored anywhere its a lambda paramater 
 
+        //get default storage quota from config (in mb) convert to bytes 
+        var defaultQuotaMB = long.Parse(_configuration["StorageQuota:DefaultQuotaMB"] ?? "1024");
+        var defaultQuotaBytes = defaultQuotaMB *1024 *1024;
+
         //make the object
         var user = new User {
             Username = request.Username,
             Email = request.Email,
             PasswordHash = HashPassword(request.Password),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+
+            // qota 
+            StorageQuotaBytes = defaultQuotaBytes, 
+            StorageUsedBytes = 0  
         };
 
         _context.Users.Add(user);
@@ -52,7 +60,9 @@ public class AuthController:ControllerBase{
         return Ok (new {
             token,
             username = user.Username,
-            email = user.Email
+            email = user.Email,
+            storageQuotaBytes = user.StorageQuotaBytes,
+            storageUsedBytes = user.StorageUsedBytes
         });
 
     }
@@ -81,7 +91,9 @@ public class AuthController:ControllerBase{
         return Ok(new {
             token,
             username = user.Username,
-            email = user.Email
+            email = user.Email,
+            storageQuotaBytes = user.StorageQuotaBytes,
+            storageUsedBytes = user.StorageUsedBytes
         });
         // here if you use  username = request.Username,
         // this will only heck the suer input only not the database 
