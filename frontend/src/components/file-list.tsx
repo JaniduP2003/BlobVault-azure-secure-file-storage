@@ -11,6 +11,8 @@ import {
   Trash,
   ExternalLink,
   X,
+  Star,
+  StarOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -89,6 +91,53 @@ export function FileList() {
   const [files, setFiles] = React.useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [starredFiles, setStarredFiles] = React.useState<Set<string>>(new Set());
+
+  // Get starred file IDs from localStorage
+  const loadStarredFiles = () => {
+    const starred = localStorage.getItem("starredFiles");
+    return starred ? new Set<string>(JSON.parse(starred)) : new Set<string>();
+  };
+
+  // Initialize starred files
+  React.useEffect(() => {
+    setStarredFiles(loadStarredFiles());
+    
+    // Listen for star changes from other components
+    const handleStarChanged = () => {
+      setStarredFiles(loadStarredFiles());
+    };
+    
+    window.addEventListener("starChanged", handleStarChanged);
+    return () => {
+      window.removeEventListener("starChanged", handleStarChanged);
+    };
+  }, []);
+
+  // Toggle star status
+  const toggleStar = (id: string, fileName: string) => {
+    const starred = loadStarredFiles();
+    
+    if (starred.has(id)) {
+      starred.delete(id);
+      toast({
+        title: "Removed from starred",
+        description: `${fileName} has been unstarred.`,
+      });
+    } else {
+      starred.add(id);
+      toast({
+        title: "Added to starred",
+        description: `${fileName} is now starred.`,
+      });
+    }
+    
+    localStorage.setItem("starredFiles", JSON.stringify([...starred]));
+    setStarredFiles(new Set(starred));
+    
+    // Dispatch event for other components
+    window.dispatchEvent(new Event("starChanged"));
+  };
 
   // Fetch files from API
   const fetchFiles = async () => {
@@ -293,6 +342,23 @@ export function FileList() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 ${
+                        starredFiles.has(file.id)
+                          ? "text-yellow-500 hover:text-yellow-600"
+                          : "text-muted-foreground hover:text-yellow-500"
+                      }`}
+                      onClick={() => toggleStar(file.id, file.fileName)}
+                      title={starredFiles.has(file.id) ? "Remove from starred" : "Add to starred"}
+                    >
+                      <Star
+                        className={`h-4 w-4 ${
+                          starredFiles.has(file.id) ? "fill-yellow-500" : ""
+                        }`}
+                      />
+                    </Button>
                     <ShareDialog fileId={file.id} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -338,6 +404,20 @@ export function FileList() {
                           onClick={() => handleFileClick(file)}
                         >
                           <ExternalLink className="h-4 w-4" /> Preview
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => toggleStar(file.id, file.fileName)}
+                        >
+                          {starredFiles.has(file.id) ? (
+                            <>
+                              <StarOff className="h-4 w-4" /> Unstar
+                            </>
+                          ) : (
+                            <>
+                              <Star className="h-4 w-4" /> Star
+                            </>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>

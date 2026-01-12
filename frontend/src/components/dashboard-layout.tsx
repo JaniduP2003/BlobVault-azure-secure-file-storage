@@ -17,8 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadDialog } from "@/components/upload-dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,11 +137,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <NavItem
               icon={<Files className="h-4 w-4" />}
               label="My Files"
-              active
+              href="/dashboard"
             />
-            <NavItem icon={<Clock className="h-4 w-4" />} label="Recent" />
-            <NavItem icon={<Star className="h-4 w-4" />} label="Starred" />
-            <NavItem icon={<Trash2 className="h-4 w-4" />} label="Trash" />
+            <NavItem icon={<Clock className="h-4 w-4" />} label="Recent" href="/recent" />
+            <NavItem icon={<Star className="h-4 w-4" />} label="Starred" href="/starred" />
+            <NavItem icon={<Trash2 className="h-4 w-4" />} label="Trash" href="/trash" />
           </nav>
 
           <div className="mt-auto border-t p-4">
@@ -176,22 +177,26 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 function NavItem({
   icon,
   label,
-  active = false,
+  href,
 }: {
   icon: React.ReactNode;
   label: string;
-  active?: boolean;
+  href: string;
 }) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
   return (
-    <button
+    <Link
+      href={href}
       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        active
+        isActive
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {icon}
       {label}
-    </button>
+    </Link>
   );
 }
