@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Base URL for your backend API
 // Change this to match your backend URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,11 +23,11 @@ api.interceptors.request.use((config) => {
 // API endpoints
 export const documentsApi = {
   // Get all files
-  getFiles: () => api.get('/api/documents'),
+  getFiles: () => api.get('/documents'),
   
   // Upload file
   uploadFile: (formData: FormData) => 
-    api.post('/api/documents/upload', formData, {
+    api.post('/documents/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -35,40 +35,40 @@ export const documentsApi = {
   
   // Download file
   downloadFile: (id: string) => 
-    api.get(`/api/documents/download/${id}`, {
+    api.get(`/documents/download/${id}`, {
       responseType: 'blob',
     }),
   
   // Delete file (soft delete - moves to trash)
-  deleteFile: (id: string) => api.delete(`/api/documents/${id}`),
+  deleteFile: (id: string) => api.delete(`/documents/${id}`),
   
   // Generate share link
   generateShareLink: (id: string, expiryMinutes: number) => 
-    api.post(`/api/documents/${id}/share`, { expiryMinutes }),
+    api.post(`/documents/${id}/share`, { expiryMinutes }),
   
   // Access shared file
   accessSharedFile: (token: string) => 
-    api.get(`/api/documents/shared/${token}`),
+    api.get(`/documents/shared/${token}`),
   
   // Trash operations
-  getTrashedFiles: () => api.get('/api/documents/trash'),
-  restoreFile: (id: string) => api.post(`/api/documents/${id}/restore`),
-  permanentDelete: (id: string) => api.delete(`/api/documents/${id}/permanent`),
-  emptyTrash: () => api.delete('/api/documents/trash/empty'),
+  getTrashedFiles: () => api.get('/documents/trash'),
+  restoreFile: (id: string) => api.post(`/documents/${id}/restore`),
+  permanentDelete: (id: string) => api.delete(`/documents/${id}/permanent`),
+  emptyTrash: () => api.delete('/documents/trash/empty'),
   
   // Star operations
-  toggleStar: (id: string) => api.post(`/api/documents/${id}/star`),
-  getStarredFiles: () => api.get('/api/documents/starred'),
+  toggleStar: (id: string) => api.post(`/documents/${id}/star`),
+  getStarredFiles: () => api.get('/documents/starred'),
 }
 
 export const authApi = {
   // Login
   login: (email: string, password: string) => 
-    api.post('/api/auth/login', { email, password }),
+    api.post('/auth/login', { email, password }),
   
   // Register
   register: (email: string, password: string, fullName: string) => 
-    api.post('/api/auth/register', { email, password, fullName }),
+    api.post('/auth/register', { email, password, fullName }),
   
   // Logout
   logout: () => {

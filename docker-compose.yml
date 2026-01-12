@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
@@ -26,10 +25,13 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8081/api
     container_name: frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8081
+      - NEXT_PUBLIC_API_URL=http://localhost:8081/api
     depends_on:
       - backend
     ports:

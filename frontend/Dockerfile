@@ -1,6 +1,11 @@
 # Frontend Dockerfile (Next.js)
 FROM node:20-alpine AS base
 WORKDIR /app
+
+# Accept build argument
+ARG NEXT_PUBLIC_API_URL=http://localhost:8081/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 COPY package.json package-lock.json ./
 RUN npm install
 COPY . .
