@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadDialog } from "@/components/upload-dialog";
+import { UpgradeStorageDialog } from "@/components/upgrade-storage-dialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -185,19 +186,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   }} 
                 />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full text-xs bg-transparent"
-                onClick={() => {
-                  toast({
-                    title: "Storage Upgrade",
-                    description: "Contact admin to upgrade your storage quota.",
-                  });
-                }}
-              >
-                Upgrade Storage
-              </Button>
+              <UpgradeStorageDialog 
+                trigger={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full text-xs bg-transparent"
+                  >
+                    Upgrade Storage
+                  </Button>
+                }
+              />
             </div>
           </div>
         </aside>
