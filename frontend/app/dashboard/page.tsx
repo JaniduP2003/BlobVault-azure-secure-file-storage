@@ -147,15 +147,15 @@ export default function DashboardPage() {
           <div className="absolute bottom-20 left-1/4 w-1 h-1 bg-white/50 rounded-full animate-bounce" style={{ animationDuration: '5s', animationDelay: '2s' }}></div>
           <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-cyan-300/30 rounded-full animate-ping" style={{ animationDuration: '3s' }}></div>
 
-          <div className="relative z-10 flex items-center justify-between">
+          <div className="relative z-10 flex items-center justify-between" style={{ filter: 'none' }}>
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-lg animate-fade-in">
-                Welcome back{username ? `, ${username}` : ""}! <span className="inline-block animate-wave">👋</span>
+              <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-lg animate-fade-in" style={{ filter: 'none' }}>
+                Welcome back{username ? `, ${username}` : ""}!
               </h1>
-              <p className="text-blue-50 text-lg font-medium drop-shadow animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <p className="text-blue-50 text-lg font-medium drop-shadow animate-fade-in" style={{ animationDelay: '0.2s', filter: 'none' }}>
                 Manage your secure files and documents with ease
               </p>
-              <div className="flex items-center gap-4 mt-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <div className="flex items-center gap-4 mt-4 animate-fade-in" style={{ animationDelay: '0.4s', filter: 'none' }}>
                 <div className="flex items-center gap-2 text-blue-50 group/status hover:scale-105 transition-transform cursor-default">
                   <div className="relative">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Icon with enhanced animations */}
-            <div className="hidden md:block animate-fade-in" style={{ animationDelay: '0.6s' }}>
+            <div className="hidden md:block animate-fade-in" style={{ animationDelay: '0.6s', filter: 'none' }}>
               <div className="relative">
                 {/* Rotating ring behind icon */}
                 <div className="absolute inset-0 w-24 h-24 border-2 border-white/20 rounded-2xl animate-spin" style={{ animationDuration: '8s' }}></div>
