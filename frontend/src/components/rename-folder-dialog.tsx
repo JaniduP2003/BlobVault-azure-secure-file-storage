@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { FolderIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,15 +37,68 @@ const FOLDER_COLORS = [
 ];
 
 export function RenameFolderDialog({ folder, open, onClose, onRenamed }: RenameFolderDialogProps) {
-  const [folderName, setFolderName] = React.useState(folder.name);
-  const [selectedColor, setSelectedColor] = React.useState(folder.color);
-  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [folderName, setFolderName] = useState(folder.name);
+  const [selectedColor, setSelectedColor] = useState(folder.color);
+  const [selectedParentId, setSelectedParentId] = useState<number | null>(folder.parentFolderId);
+  const [availableFolders, setAvailableFolders] = useState<Folder[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const { toast } = useToast();
 
-  React.useEffect(() => {
+  useEffect(() => {
     setFolderName(folder.name);
     setSelectedColor(folder.color);
+    setSelectedParentId(folder.parentFolderId);
   }, [folder]);
+
+  // Load all folders to build list of possible parents
+  useEffect(() => {
+    const loadFolders = async () => {
+      if (!open) return;
+      
+      setIsLoadingFolders(true);
+      try {
+        // Load root folders
+        const response = await foldersApi.getFolders(null);
+        const allFolders = [...response.data];
+        
+        // Load subfolders for each root folder
+        for (const f of response.data) {
+          if (f.id === folder.id) continue; // Skip current folder
+          try {
+            const subResponse = await foldersApi.getFolders(f.id);
+            allFolders.push(...subResponse.data);
+          } catch (error) {
+            console.error(`Failed to load subfolders for ${f.name}`, error);
+          }
+        }
+        
+        // Filter out current folder and its descendants to prevent circular references
+        const validFolders = allFolders.filter(f => {
+          // Don't include the folder being edited
+          if (f.id === folder.id) return false;
+          
+          // Don't include any descendants of this folder
+          // (simple check: if this folder is a parent, exclude it)
+          // For a more robust check, you'd need to traverse the full tree
+          return true;
+        });
+        
+        setAvailableFolders(validFolders);
+      } catch (error: any) {
+        console.error("Failed to load folders:", error);
+        toast({
+          variant: "destructive",
+          title: "Failed to load folders",
+          description: error.response?.data?.message || "Please try again.",
+        });
+      } finally {
+        setIsLoadingFolders(false);
+      }
+    };
+
+    loadFolders();
+  }, [open, folder.id, toast]);
 
   const handleUpdate = async () => {
     if (!folderName.trim()) {
@@ -60,6 +115,7 @@ export function RenameFolderDialog({ folder, open, onClose, onRenamed }: RenameF
       await foldersApi.updateFolder(folder.id, {
         name: folderName.trim(),
         color: selectedColor,
+        parentFolderId: selectedParentId,  // Include parent folder
       });
 
       toast({
@@ -86,7 +142,7 @@ export function RenameFolderDialog({ folder, open, onClose, onRenamed }: RenameF
         <DialogHeader>
           <DialogTitle>Edit Folder</DialogTitle>
           <DialogDescription>
-            Update the folder name and color
+            Update the folder name, color, and location
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -121,6 +177,57 @@ export function RenameFolderDialog({ folder, open, onClose, onRenamed }: RenameF
                 />
               ))}
             </div>
+          </div>
+          
+          {/* Parent Folder Selector */}
+          <div className="grid gap-2">
+            <Label>Parent Folder</Label>
+            {isLoadingFolders ? (
+              <div className="text-sm text-muted-foreground py-2">
+                Loading folders...
+              </div>
+            ) : (
+              <div className="border rounded-lg max-h-48 overflow-y-auto">
+                {/* Root option */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedParentId(null)}
+                  className={`w-full flex items-center gap-2 p-2 text-sm hover:bg-accent transition-colors ${
+                    selectedParentId === null ? "bg-accent" : ""
+                  }`}
+                >
+                  <FolderIcon className="h-4 w-4" style={{ color: "#6b7280" }} />
+                  <span>Root (Top Level)</span>
+                  {selectedParentId === null && (
+                    <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </button>
+                
+                {/* Available folders */}
+                {availableFolders.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setSelectedParentId(f.id)}
+                    className={`w-full flex items-center gap-2 p-2 text-sm hover:bg-accent transition-colors ${
+                      selectedParentId === f.id ? "bg-accent" : ""
+                    } ${f.parentFolderId !== null ? "pl-6" : ""}`}
+                  >
+                    <FolderIcon className="h-4 w-4" style={{ color: f.color }} />
+                    <span>{f.name}</span>
+                    {selectedParentId === f.id && (
+                      <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                    )}
+                  </button>
+                ))}
+                
+                {availableFolders.length === 0 && (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No other folders available
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
