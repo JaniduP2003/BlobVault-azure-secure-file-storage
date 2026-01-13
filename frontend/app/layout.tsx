@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { NeonBorder } from "@/components/neon-border";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "BLOBDRIVE - Secure Cloud Storage",
-  description: "Manage and organize your documents securely with Azure-powered cloud storage",
+  description:
+    "Manage and organize your documents securely with Azure-powered cloud storage",
 };
 
 export default function RootLayout({
@@ -28,6 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NeonBorder />
         {children}
         <Toaster />
       </body>
