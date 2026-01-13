@@ -162,16 +162,6 @@ export function FileList({ folderId }: FileListProps) {
 
       const data = await response.json();
       
-      console.log('📁 FileList Debug:', {
-        currentFolderId: folderId,
-        totalFilesFromAPI: data.length,
-        filesWithFolders: data.map((f: any) => ({ 
-          name: f.fileName, 
-          folderId: f.folderId,
-          folderIdType: typeof f.folderId 
-        }))
-      });
-      
       // Filter files by folderId
       const filteredFiles = data.filter((file: FileItem) => {
         const fileFolderId = file.folderId ?? null; // Treat undefined as null
@@ -180,8 +170,6 @@ export function FileList({ folderId }: FileListProps) {
         // Compare: both null/undefined = root, or exact match
         return fileFolderId === targetFolderId;
       });
-      
-      console.log('✅ Filtered files:', filteredFiles.length, 'files for folder', folderId);
       
       setFiles(filteredFiles);
     } catch (error: any) {

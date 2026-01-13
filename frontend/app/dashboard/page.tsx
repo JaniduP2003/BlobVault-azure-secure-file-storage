@@ -47,9 +47,9 @@ export default function DashboardPage() {
     checkAuth();
   }, [router]);
 
-  // Load current folder details
+  // Load current folder details and build breadcrumb trail
   useEffect(() => {
-    const loadFolder = async () => {
+    const loadFolderAndBreadcrumbs = async () => {
       if (currentFolderId === null) {
         setCurrentFolder(null);
         setBreadcrumbs([]);
@@ -60,15 +60,34 @@ export default function DashboardPage() {
         const response = await foldersApi.getFolder(currentFolderId);
         setCurrentFolder(response.data);
         
-        // Build breadcrumbs (simplified - in production, you'd fetch the full path)
-        setBreadcrumbs([{ id: currentFolderId, name: response.data.name }]);
+        // Build breadcrumb trail by traversing parent folders
+        const trail: FolderBreadcrumb[] = [];
+        let currentId: number | null = currentFolderId;
+        let folder = response.data;
+        
+        // Add current folder to trail
+        trail.unshift({ id: folder.id, name: folder.name });
+        
+        // Traverse up the parent chain
+        while (folder.parentFolderId !== null) {
+          try {
+            const parentResponse = await foldersApi.getFolder(folder.parentFolderId);
+            folder = parentResponse.data;
+            trail.unshift({ id: folder.id, name: folder.name });
+          } catch (error) {
+            console.error("Failed to load parent folder:", error);
+            break;
+          }
+        }
+        
+        setBreadcrumbs(trail);
       } catch (error) {
         console.error("Failed to load folder:", error);
         setCurrentFolderId(null);
       }
     };
 
-    loadFolder();
+    loadFolderAndBreadcrumbs();
   }, [currentFolderId, refreshKey]);
 
   const handleFolderClick = (folderId: number) => {
