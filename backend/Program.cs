@@ -146,11 +146,11 @@ builder.Services.Configure<HostOptions>(options =>
 
 var app = builder.Build();
 
-// Ensure database is created on startup
+// Ensure database is created and migrations are applied on startup
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.EnsureCreated(); // Creates the database if it doesn't exist
+    dbContext.Database.Migrate(); // Apply pending migrations
 }
 
 //add the http pipe line 
