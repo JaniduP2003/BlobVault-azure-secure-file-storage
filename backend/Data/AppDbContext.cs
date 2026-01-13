@@ -22,6 +22,9 @@ public class AppDbContext:DbContext{
     //filematadata name is the same but inside <> is the table in the database in MODELS
     //folder otehr is just a name it can be  just filedata to
 
+    public DbSet<Folder> Folders {set;get;}
+    //Folders table for organizing files
+
     //need to custom behavior cant use the inbuild in dbcontext so OVVERRIDE
     protected override void OnModelCreating(ModelBuilder modelBuilder){
         //OnModelCreating is a method in dbcontext this creates tables befor everything starts

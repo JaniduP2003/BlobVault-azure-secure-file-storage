@@ -98,7 +98,7 @@ public class DocumentsController : ControllerBase
     [RequestSizeLimit(100 * 1024 * 1024)] // 100MB limit
     [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)] // 100MB limit for multipart forms
     //IFormFile is a interfece to look inside the formdata body
-    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] int? folderId)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "No file provided " });
@@ -144,6 +144,15 @@ public class DocumentsController : ControllerBase
         {
             var userId = GetUserId();
 
+        if (folderId.HasValue && folderId.Value > 0)
+        {
+            var folderExists = await _context. Folders
+                .AnyAsync(f => f.Id == folderId.Value && f.UserId == userId);
+
+            if (!folderExists)
+                return BadRequest(new { message = "Folder not found" });
+        }
+
             // the storage cheack and other 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -183,7 +192,8 @@ public class DocumentsController : ControllerBase
                 UserId = userId,
                 FileSize = file.Length,
                 ContentType = file.ContentType,
-                UploadedAt = DateTime.UtcNow
+                UploadedAt = DateTime.UtcNow,
+                FolderId = folderId 
 
             };
 
@@ -202,6 +212,8 @@ public class DocumentsController : ControllerBase
                 ContentType = metadata.ContentType,
                 uploadedAt = metadata.UploadedAt,
                 url,
+
+                folderId = metadata.FolderId, 
 
                 storageUsedBytes = user.StorageUsedBytes,
                 storageQuotaBytes = user.StorageQuotaBytes,
@@ -620,5 +632,80 @@ public class DocumentsController : ControllerBase
         }
     }
 
+[HttpGet("by-folder/{folderId}")]
+public async Task<IActionResult> GetFilesByFolder(int folderId)
+{
+    try
+    {
+        var userId = GetUserId();
+
+        // Verify folder belongs to user
+        var folderExists = await _context. Folders
+            .AnyAsync(f => f.Id == folderId && f.UserId == userId);
+
+        if (!folderExists)
+            return NotFound(new { message = "Folder not found" });
+
+        var files = await _context.FileMetadata
+            .Where(f => f.UserId == userId && f.FolderId == folderId && !f.IsDeleted)
+            .OrderByDescending(f => f. UploadedAt)
+            .Select(f => new
+            {
+                f.Id,
+                f.FileName,
+                f. FileSize,
+                f.ContentType,
+                f.UploadedAt,
+                f. LastAccessedAt,
+                f.IsStarred,
+                f.FolderId
+            })
+            .ToListAsync();
+
+        return Ok(files);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error getting files by folder");
+        return StatusCode(500, new { message = "Error getting files" });
+    }
+}
+
+// Move file to different folder
+[HttpPut("{id}/move")]
+public async Task<IActionResult> MoveFile(int id, [FromBody] MoveFileRequest request)
+{
+    try
+    {
+        var userId = GetUserId();
+        var file = await _context.FileMetadata
+            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+
+        if (file == null)
+            return NotFound(new { message = "File not found" });
+
+        // Validate target folder exists if provided
+        if (request.FolderId.HasValue && request.FolderId.Value > 0)
+        {
+            var folderExists = await _context.Folders
+                .AnyAsync(f => f.Id == request.FolderId.Value && f.UserId == userId);
+
+            if (!folderExists)
+                return BadRequest(new { message = "Target folder not found" });
+        }
+
+        file.FolderId = request.FolderId;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation($"File {file.FileName} moved to folder {request.FolderId}");
+
+        return Ok(new { message = "File moved successfully", folderId = file.FolderId });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error moving file");
+        return StatusCode(500, new { message = "Error moving file" });
+    }
+}
 
 }

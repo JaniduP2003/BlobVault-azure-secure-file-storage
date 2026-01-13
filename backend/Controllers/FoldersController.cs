@@ -266,7 +266,7 @@ public class FoldersController:ControllerBase{
             }
 
             _context.Folders.Remove(folder);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();          
 
             _logger.LogInformation($"Folder deleted: {folder.Name} (ID: {folder.Id})");
 
