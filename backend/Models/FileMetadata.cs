@@ -10,8 +10,8 @@ namespace backend.Models;
 
 public class FileMetadata{
     public int Id{ get;set; }
-    public string FileName {get; set;}
-    public string BlobName { get; set;}
+    public string FileName {get; set;} = string.Empty;
+    public string BlobName { get; set;} = string.Empty;
     public int UserId {set; get;}  // Changed from string to int to match User.Id
     public long FileSize{set;get;}
     public string ContentType {get;set;} = string.Empty;

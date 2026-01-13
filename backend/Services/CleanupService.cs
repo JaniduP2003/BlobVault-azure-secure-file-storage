@@ -85,7 +85,7 @@ private async Task DoCleanupAsync(){
     
     foreach(var file in filesToDelete){
         var blobPath = file.IsArchived ? file.ArchivePath : file.BlobName;
-        if (await blobService.DeleteAsync(blobPath)){
+        if (!string.IsNullOrEmpty(blobPath) && await blobService.DeleteAsync(blobPath)){
             dbContext.FileMetadata.Remove(file);
         }
     }
