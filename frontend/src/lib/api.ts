@@ -60,8 +60,32 @@ export const documentsApi = {
   toggleStar: (id: string) => api.post(`/documents/${id}/star`),
   getStarredFiles: () => api.get('/documents/starred'),
   
+  // Move file to folder
+  moveFile: (id: string, folderId: number | null) => 
+    api.put(`/documents/${id}/move`, { folderId }),
+  
   // Recent files
   getRecentFiles: () => api.get('/documents/recent'),
+}
+
+export const foldersApi = {
+  // Get all folders (optionally filtered by parent)
+  getFolders: (parentId?: number | null) => 
+    api.get('/folders', { params: parentId !== undefined ? { parentId } : {} }),
+  
+  // Get specific folder with contents
+  getFolder: (id: number) => api.get(`/folders/${id}`),
+  
+  // Create folder
+  createFolder: (data: { name: string; parentFolderId?: number | null; color?: string }) => 
+    api.post('/folders', data),
+  
+  // Update folder (rename, change color, move)
+  updateFolder: (id: number, data: { name?: string; color?: string; parentFolderId?: number | null }) => 
+    api.put(`/folders/${id}`, data),
+  
+  // Delete folder
+  deleteFolder: (id: number) => api.delete(`/folders/${id}`),
 }
 
 export const authApi = {

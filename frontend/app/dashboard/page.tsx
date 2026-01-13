@@ -5,12 +5,27 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { FileList } from "@/components/file-list";
+import { FolderList } from "@/components/folder-list";
+import { FolderBreadcrumbs } from "@/components/folder-breadcrumbs";
+import { CreateFolderDialog } from "@/components/create-folder-dialog";
+import { UploadDialog } from "@/components/upload-dialog";
 import { isAuthenticated, getUserInfo, clearAuth } from "@/lib/auth";
+import { foldersApi } from "@/lib/api";
+import type { FolderDetail } from "@/types";
+
+interface FolderBreadcrumb {
+  id: number | null;
+  name: string;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [username, setUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<FolderDetail | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<FolderBreadcrumb[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -31,6 +46,42 @@ export default function DashboardPage() {
 
     checkAuth();
   }, [router]);
+
+  // Load current folder details
+  useEffect(() => {
+    const loadFolder = async () => {
+      if (currentFolderId === null) {
+        setCurrentFolder(null);
+        setBreadcrumbs([]);
+        return;
+      }
+
+      try {
+        const response = await foldersApi.getFolder(currentFolderId);
+        setCurrentFolder(response.data);
+        
+        // Build breadcrumbs (simplified - in production, you'd fetch the full path)
+        setBreadcrumbs([{ id: currentFolderId, name: response.data.name }]);
+      } catch (error) {
+        console.error("Failed to load folder:", error);
+        setCurrentFolderId(null);
+      }
+    };
+
+    loadFolder();
+  }, [currentFolderId, refreshKey]);
+
+  const handleFolderClick = (folderId: number) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleNavigate = (folderId: number | null) => {
+    setCurrentFolderId(folderId);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   if (isLoading) {
     return (
@@ -58,10 +109,41 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Your Files</h2>
+          {/* Breadcrumbs */}
+          {breadcrumbs.length > 0 && (
+            <FolderBreadcrumbs
+              currentPath={breadcrumbs}
+              onNavigate={handleNavigate}
+            />
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-xl font-semibold">
+              {currentFolder ? currentFolder.name : "Your Files"}
+            </h2>
+            <div className="flex gap-2">
+              <CreateFolderDialog
+                parentFolderId={currentFolderId}
+                onFolderCreated={handleRefresh}
+              />
+              <UploadDialog folderId={currentFolderId} />
+            </div>
           </div>
-          <FileList />
+
+          {/* Folders */}
+          <FolderList
+            key={`folders-${currentFolderId}-${refreshKey}`}
+            parentId={currentFolderId}
+            onFolderClick={handleFolderClick}
+            onRefresh={handleRefresh}
+          />
+
+          {/* Files */}
+          <FileList 
+            key={`files-${currentFolderId}-${refreshKey}`}
+            folderId={currentFolderId} 
+          />
         </div>
       </div>
     </DashboardLayout>

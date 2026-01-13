@@ -14,6 +14,7 @@ import {
   Star,
   StarOff,
   Download,
+  FolderInput,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ShareDialog } from "@/components/share-dialog";
+import { MoveFileDialog } from "@/components/move-file-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +52,7 @@ interface FileItem {
   lastAccessedAt: string;
   isStarred?: boolean;
   url?: string;
+  folderId?: number | null;
 }
 
 const MOCK_FILES: FileItem[] = [
@@ -88,12 +91,18 @@ const MOCK_FILES: FileItem[] = [
   },
 ];
 
-export function FileList() {
+interface FileListProps {
+  folderId?: number | null;
+}
+
+export function FileList({ folderId }: FileListProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [files, setFiles] = React.useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
+  const [fileToMove, setFileToMove] = React.useState<{ id: string; name: string } | null>(null);
 
   // Toggle star status using backend API
   const toggleStar = async (id: string, fileName: string, currentStarred: boolean) => {
@@ -152,7 +161,29 @@ export function FileList() {
       }
 
       const data = await response.json();
-      setFiles(data);
+      
+      console.log('📁 FileList Debug:', {
+        currentFolderId: folderId,
+        totalFilesFromAPI: data.length,
+        filesWithFolders: data.map((f: any) => ({ 
+          name: f.fileName, 
+          folderId: f.folderId,
+          folderIdType: typeof f.folderId 
+        }))
+      });
+      
+      // Filter files by folderId
+      const filteredFiles = data.filter((file: FileItem) => {
+        const fileFolderId = file.folderId ?? null; // Treat undefined as null
+        const targetFolderId = folderId ?? null; // Treat undefined as null
+        
+        // Compare: both null/undefined = root, or exact match
+        return fileFolderId === targetFolderId;
+      });
+      
+      console.log('✅ Filtered files:', filteredFiles.length, 'files for folder', folderId);
+      
+      setFiles(filteredFiles);
     } catch (error: any) {
       console.error("Error fetching files:", error);
       setError(error.message || "Unable to connect to server");
@@ -161,7 +192,7 @@ export function FileList() {
     }
   };
 
-  // Fetch files on mount
+  // Fetch files on mount and when folderId changes
   React.useEffect(() => {
     fetchFiles();
 
@@ -174,7 +205,7 @@ export function FileList() {
     return () => {
       window.removeEventListener("fileUploaded", handleFileUploaded);
     };
-  }, []);
+  }, [folderId]); // Re-fetch when folderId changes
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -430,6 +461,15 @@ export function FileList() {
                             </>
                           )}
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => {
+                            setFileToMove({ id: file.id, name: file.fileName });
+                            setMoveDialogOpen(true);
+                          }}
+                        >
+                          <FolderInput className="h-4 w-4" /> Move to Folder
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -470,6 +510,21 @@ export function FileList() {
           </tbody>
         </table>
       </div>
+      )}
+      
+      {/* Move file dialog */}
+      {fileToMove && (
+        <MoveFileDialog
+          fileId={fileToMove.id}
+          fileName={fileToMove.name}
+          currentFolderId={folderId ?? null}
+          open={moveDialogOpen}
+          onOpenChange={setMoveDialogOpen}
+          onFileMoved={() => {
+            fetchFiles();
+            setFileToMove(null);
+          }}
+        />
       )}
     </div>
   );

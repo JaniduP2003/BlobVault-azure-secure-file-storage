@@ -247,7 +247,8 @@ public class DocumentsController : ControllerBase
                                                         f.ContentType,
                                                         f.UploadedAt,
                                                         f.LastAccessedAt,
-                                                        f.IsStarred
+                                                        f.IsStarred,
+                                                        f.FolderId
                                                     }).ToListAsync();
             return Ok(files);
         }

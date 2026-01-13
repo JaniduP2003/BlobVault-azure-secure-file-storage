@@ -10,7 +10,11 @@ import { useToast } from "@/hooks/use-toast"
 import { clearAuth, getToken } from "@/lib/auth"
 import { useStorage } from "@/contexts/storage-context"
 
-export function UploadDialog() {
+interface UploadDialogProps {
+  folderId?: number | null;
+}
+
+export function UploadDialog({ folderId }: UploadDialogProps = {}) {
   const router = useRouter()
   const [isOpen, setIsOpen] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
@@ -50,6 +54,9 @@ export function UploadDialog() {
       // Create FormData for file upload
       const formData = new FormData()
       formData.append("file", file)
+      if (folderId !== null && folderId !== undefined) {
+        formData.append("folderId", folderId.toString())
+      }
 
       // Upload file to backend
       const response = await fetch("http://localhost:8081/api/documents/upload", {
