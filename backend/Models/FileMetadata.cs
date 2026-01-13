@@ -26,7 +26,11 @@ public class FileMetadata{
     
     // Starred field
     public bool IsStarred { get; set; } = false;
+
+    //folder refrence 
+    public int? FolderId {get;set;}
     
     // Navigation property
     public User? User { get; set; }
+    public Folder? Folder {get;set;}
 }
