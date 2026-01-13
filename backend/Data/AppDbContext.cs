@@ -41,5 +41,37 @@ public class AppDbContext:DbContext{
             // Add index for storage queries for better speed 
             modelBuilder.Entity<FileMetadata>()
                 .HasIndex(f => new { f.UserId, f. IsDeleted });
+
+
+        modelBuilder.Entity<FileMetadata>()
+            .HasIndex(f => f.FolderId);  // for faster folder queries
+
+        // Folder indexes
+        modelBuilder.Entity<Folder>()
+            .HasIndex(f => new { f.UserId, f. ParentFolderId });  
+
+        // Folder relationships
+        //“Folders belong to users. If the user is deleted → all their folders die too.”
+        modelBuilder.Entity<Folder>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior. Cascade);
+
+        //“Folders can have subfolders. But you’re NOT allowed to delete a parent if kids exist.”
+        //Nope 🚫 Clean up the children first.”
+        modelBuilder.Entity<Folder>()
+            .HasOne(f => f.ParentFolder)
+            .WithMany(f => f.SubFolders)
+            .HasForeignKey(f => f.ParentFolderId)
+            .OnDelete(DeleteBehavior.Restrict);  
+
+        // File-Folder relationship
+        //“Files can live inside folders… but if a folder dies, files become homeless — not dead.
+        modelBuilder.Entity<FileMetadata>()
+            .HasOne(f => f.Folder)
+            .WithMany(folder => folder.Files)
+            .HasForeignKey(f => f.FolderId)
+            .OnDelete(DeleteBehavior. SetNull); 
     }
 }
