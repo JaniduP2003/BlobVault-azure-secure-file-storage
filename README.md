@@ -18,8 +18,7 @@ Modern cloud file workflow system using **Next.js** and **.NET** with **Azure Bl
 | ![Create folder](screenshots/3%20crate%20a%20folder.png) |
 | ![Welcome screen](screenshots/3%20wellcome%20screen.png) |
 | ![Upload file](screenshots/4%20uplode%20file.png) |
-| ![Dashboard 1](screenshots/5.png) |
-| ![Dashboard 2](screenshots/6.png) |
+| ![Dashboard 1](screenshots/5.png) | ![Dashboard 2](screenshots/6.png) |
 
 ---
 
