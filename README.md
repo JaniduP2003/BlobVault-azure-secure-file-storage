@@ -31,8 +31,10 @@ Modern cloud file workflow system using **Next.js** and **.NET** with **Azure Bl
     <td><img src="screenshots/5.png" alt="Dashboard 1" width="700" /></td>
   </tr>
   <tr>
-    <td><img src="screenshots/6.png" alt="Dashboard 2" width="350" /></td>
-    <td><img src="screenshots/7.png" alt="Dashboard 3" width="350" /></td>
+    <td><img src="screenshots/6.png" alt="Dashboard 2" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/7.png" alt="Dashboard 3" width="700" /></td>
   </tr>
 </table>
 
