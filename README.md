@@ -11,14 +11,30 @@ Modern cloud file workflow system using **Next.js** and **.NET** with **Azure Bl
 
 ## 📷 Screenshots
 
-| |
-|---|
-| ![Login](screenshots/1%20login.png) |
-| ![Sign up](screenshots/2%20signup.png) |
-| ![Create folder](screenshots/3%20crate%20a%20folder.png) |
-| ![Welcome screen](screenshots/3%20wellcome%20screen.png) |
-| ![Upload file](screenshots/4%20uplode%20file.png) |
-| ![Dashboard 1](screenshots/5.png) | ![Dashboard 2](screenshots/6.png) |
+<table>
+  <tr>
+    <td><img src="screenshots/1%20login.png" alt="Login" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/2%20signup.png" alt="Sign up" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/3%20crate%20a%20folder.png" alt="Create folder" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/3%20wellcome%20screen.png" alt="Welcome screen" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/4%20uplode%20file.png" alt="Upload file" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/5.png" alt="Dashboard 1" width="700" /></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/6.png" alt="Dashboard 2" width="350" /></td>
+    <td><img src="screenshots/7.png" alt="Dashboard 3" width="350" /></td>
+  </tr>
+</table>
 
 ---
 
